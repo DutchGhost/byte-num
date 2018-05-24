@@ -2,5 +2,10 @@
 name = "hypernums"
 version = "0.1.0"
 authors = ["DutchGhost <kasper199914@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/DutchGhost/hypernums.git"
 
 [dependencies]
+
+[features]
+nightly = []
