@@ -1,3 +1,4 @@
+#[cfg(feature="nightly")]
 pub mod bench_from_ascii {
     use test::Bencher;
 
@@ -41,46 +42,62 @@ pub mod bench_from_ascii {
 }
 
 pub mod bench_into_ascii {
-    use test::Bencher;
 
     use convert::IntoAscii;
 
     const INT_U16: [u16; 25] = [234, 4356, 234, 356, 567, 345, 2345, 456, 5467, 234, 234, 5436, 567, 345, 456, 5467, 234, 234, 456, 234, 23, 45, 456, 34, 45];
     const INT_U64: [u64; 25] = [982374, 987234, 98456, 136, 2354, 3, 8743, 9645, 2173, 0986, 237493984, 79613, 34, 98274, 965, 2, 5, 2, 8, 98274, 987768234, 9875, 987, 9878376, 1678];
 
-    #[bench]
-    fn bench_u16_into_ascii(b: &mut Bencher) {
-        b.iter(|| {
-            for item in INT_U16.iter() {
-                item.itoa();
-            }
-        })
+    #[test]
+    fn test_for_equality() {
+        let itoa_vec = INT_U16.iter().map(|n| n.itoa()).collect::<Vec<_>>();
+
+        let format_vec = INT_U16.iter().map(|n| format!("{}", n).into_bytes()).collect::<Vec<_>>();
+
+        assert_eq!(itoa_vec, format_vec);
     }
 
-    #[bench]
-    fn bench_u16_vec_sd(b: &mut Bencher) {
-        b.iter(|| {
-            for item in INT_U16.iter() {
-                format!("{}", item).into_bytes();
-            }
-        })
-    }
+    #[cfg(feature="nightly")]
+    pub mod benches {
+        use convert::IntoAscii;
 
-    #[bench]
-    fn bench_u64_into_ascii(b: &mut Bencher) {
-        b.iter(|| {
-            for item in INT_U64.iter() {
-                item.itoa();
-            }
-        })
-    }
+        use tests::bench_into_ascii::{INT_U16, INT_U64};
+        use test::Bencher;
 
-    #[bench]
-    fn bench_u64_vec_sd(b: &mut Bencher) {
-        b.iter(|| {
-            for item in INT_U64.iter() {
-                format!("{}", item).into_bytes();
-            }
-        })
+        #[bench]
+        fn bench_u16_into_ascii(b: &mut Bencher) {
+            b.iter(|| {
+                for item in INT_U16.iter() {
+                    item.itoa();
+                }
+            })
+        }
+
+        #[bench]
+        fn bench_u16_vec_sd(b: &mut Bencher) {
+            b.iter(|| {
+                for item in INT_U16.iter() {
+                    format!("{}", item).into_bytes();
+                }
+            })
+        }
+
+        #[bench]
+        fn bench_u64_into_ascii(b: &mut Bencher) {
+            b.iter(|| {
+                for item in INT_U64.iter() {
+                    item.itoa();
+                }
+            })
+        }
+
+        #[bench]
+        fn bench_u64_vec_sd(b: &mut Bencher) {
+            b.iter(|| {
+                for item in INT_U64.iter() {
+                    format!("{}", item).into_bytes();
+                }
+            })
+        }
     }
 }
