@@ -228,7 +228,6 @@ macro_rules! impl_unsigned_conversions {
                 let mut q2;
                 let mut r2;
 
-                let mut q3;
                 let mut r3;
 
                 let mut len = buff.len();
@@ -237,12 +236,11 @@ macro_rules! impl_unsigned_conversions {
                     q  = self / 10;
                     q1 = self / 100;
                     q2 = self / 1000;
-                    q3 = self / 10000;
 
-                    r  = (self % 10) as u8  + ASCII_TO_INT_FACTOR;
-                    r1 = (q % 10) as u8  + ASCII_TO_INT_FACTOR;
-                    r2 = (q1 % 10) as u8  + ASCII_TO_INT_FACTOR;
-                    r3 = (q2 % 10) as u8  + ASCII_TO_INT_FACTOR;
+                    r  = (self % 10)  as u8 + ASCII_TO_INT_FACTOR;
+                    r1 =    (q % 10)  as u8 + ASCII_TO_INT_FACTOR;
+                    r2 =    (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    r3 =    (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
 
                     unsafe {
                         //last index
@@ -256,22 +254,20 @@ macro_rules! impl_unsigned_conversions {
                     }
 
                     len -= 4;
-                    self = q3;    
+                    self /= 10000
                 }
                 
                 //fixup loop.
                 for byte in unsafe {buff.get_unchecked_mut(..len) }.iter_mut().rev() {
                     q = self / 10;
-                    r = (self % 10) as u8;
-                    *byte = r + ASCII_TO_INT_FACTOR;
+                    r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    *byte = r;
+                    if q == 0 { return }
                     self = q;
-                //    len -= 1;
-                    
-                    if self == 0 { break }
                 }
-                
             }
-            // fn int_to_bytes(mut self, buff: &mut [u8]) -> &mut [u8] {
+            // #[inline]
+            // fn int_to_bytes(mut self, buff: &mut [u8]) {
             //     let mut q;
             //     let mut r;
 
@@ -282,7 +278,6 @@ macro_rules! impl_unsigned_conversions {
             //         self = q;
             //         if self == 0 { break }
             //     }
-            //     buff
             // }
         }
     );
@@ -322,8 +317,8 @@ impl IntoAscii for u8 {
 
         for byte in buff.iter_mut().rev() {
             q = self / 10;
-            r = (self % 10) as u8;
-            *byte = r + ASCII_TO_INT_FACTOR;
+            r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
+            *byte = r;
             self = q;
 
             if self == 0 { break }
@@ -341,11 +336,48 @@ macro_rules! impl_signed_conversions {
         impl FromAscii for $int {
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
                 if bytes.starts_with(b"-") {
-                    Ok(<$unsigned_version>::bytes_to_int(&bytes[1..])? as Self * -1)
+                    unsafe {
+                        Ok(<$unsigned_version>::bytes_to_int(bytes.get_unchecked(1..))? as Self * -1)
+                    }
                 }
                 else {
                     Ok(<$unsigned_version>::bytes_to_int(bytes)? as Self)
                 }
+            }
+        }
+
+        impl IntoAscii for $int {
+            fn itoa(&self) -> Vec<u8>
+            where
+                Self: Copy
+            {
+                
+                if self < &0 {
+                    let n = self * -1;
+                    let size = Self::digits10(n) + 1;
+
+                    let mut buff = vec![0; size];
+                    unsafe { *buff.get_unchecked_mut(0) = b'-';}
+                    n.int_to_bytes(&mut buff);
+                    buff
+                }
+                else {
+                    let size = Self::digits10(*self);
+                    let mut buff = vec![0; size];
+                    self.int_to_bytes(&mut buff);
+                    buff
+                }
+
+            }
+
+            #[inline]
+            fn digits10(self) -> usize {
+                (self as $unsigned_version).digits10()
+            }
+
+            #[inline]
+            fn int_to_bytes(self, buff: &mut [u8]) {
+                (self as $unsigned_version).int_to_bytes(buff);
             }
         }
     }
