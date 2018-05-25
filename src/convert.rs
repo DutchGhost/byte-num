@@ -219,28 +219,18 @@ macro_rules! impl_unsigned_conversions {
 
             #[inline]
             fn int_to_bytes(mut self, buff: &mut [u8])  {
-                let mut q;
-                let mut r;
-
-                let mut q1;
-                let mut r1;
-
-                let mut q2;
-                let mut r2;
-
-                let mut r3;
 
                 let mut len = buff.len();
 
                 while self >= 10_000 {
-                    q  = self / 10;
-                    q1 = self / 100;
-                    q2 = self / 1000;
+                    let q  = self / 10;
+                    let q1 = self / 100;
+                    let q2 = self / 1000;
 
-                    r  = (self % 10)  as u8 + ASCII_TO_INT_FACTOR;
-                    r1 =    (q % 10)  as u8 + ASCII_TO_INT_FACTOR;
-                    r2 =    (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
-                    r3 =    (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let r  = (self % 10)  as u8 + ASCII_TO_INT_FACTOR;
+                    let r1 =    (q % 10)  as u8 + ASCII_TO_INT_FACTOR;
+                    let r2 =    (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let r3 =    (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
 
                     unsafe {
                         // last index
@@ -259,8 +249,8 @@ macro_rules! impl_unsigned_conversions {
                 
                 //fixup loop. This might not be run if self was a multiple of 10_000
                 for byte in unsafe {buff.get_unchecked_mut(..len) }.iter_mut().rev() {
-                    q = self / 10;
-                    r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let q = self / 10;
+                    let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
 
                     //there's nothing more to do.
