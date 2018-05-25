@@ -63,8 +63,8 @@ pub trait FromAscii: Sized {
     /// The function performing the conversion. It takes anything that can be transformed into a byte-slice.
     /// # Examples
     /// ```
-    /// extern crate hypernums;
-    /// use hypernums::convert::FromAscii;
+    /// extern crate byte_num;
+    /// use byte_num::convert::FromAscii;
     ///
     /// fn main() {
     ///     assert_eq!(u32::atoi("1928"), Ok(1928));
@@ -76,8 +76,8 @@ pub trait FromAscii: Sized {
     /// causes undifined behaviour, and gives a panic in debug builds.
     /// For example:
     /// ```
-    /// extern crate hypernums;
-    /// use hypernums::convert::FromAscii;
+    /// extern crate byte_num;
+    /// use byte_num::convert::FromAscii;
     ///
     /// fn main () {
     ///     let n = std::panic::catch_unwind(|| u8::atoi("257"));
@@ -100,8 +100,8 @@ pub trait IntoAscii {
     /// The function performing the convertion.
     /// # Examples
     /// ```
-    /// extern crate hypernums;
-    /// use hypernums::convert::IntoAscii;
+    /// extern crate byte_num;
+    /// use byte_num::convert::IntoAscii;
     /// 
     /// fn main() {
     ///     assert_eq!(12345u32.itoa(), [b'1', b'2', b'3', b'4', b'5']);
@@ -128,8 +128,8 @@ pub trait IntoAscii {
     /// To get the size of an integer would take, use [`digits10()`](trait.IntoAscii.html#tymethod.digits10).
     /// # Examples
     /// ```
-    /// extern crate hypernums;
-    /// use hypernums::convert::IntoAscii;
+    /// extern crate byte_num;
+    /// use byte_num::convert::IntoAscii;
     /// 
     /// fn main() {
     ///     let mut v = vec![0, 0, 0, 0, 0];
@@ -268,7 +268,7 @@ macro_rules! impl_unsigned_conversions {
                     self = q;
                 }
             }
-            
+
             // #[inline]
             // fn int_to_bytes(mut self, buff: &mut [u8]) {
             //     let mut q;
