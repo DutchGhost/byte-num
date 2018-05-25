@@ -142,7 +142,7 @@ pub trait IntoAscii {
     ///     
     ///     // if the buffer is larger than the number of digits, it fills with 0.
     ///     123u8.int_to_bytes(&mut v);
-    ///     assert_eq!(v, [b'0', b'0', b'1', b'2', b'3']);
+    ///     assert_eq!(v, [b'5', b'4', b'1', b'2', b'3']);
     /// 
     ///     // use slicing to collect 2 numbers into the buffer:
     /// 
@@ -218,17 +218,72 @@ macro_rules! impl_unsigned_conversions {
             }
 
             #[inline]
-            fn int_to_bytes(mut self, buff: &mut [u8]) {
+            fn int_to_bytes(mut self, buff: &mut [u8])  {
                 let mut q;
                 let mut r;
 
-                for byte in buff.iter_mut().rev() {
+                let mut q1;
+                let mut r1;
+
+                let mut q2;
+                let mut r2;
+
+                let mut q3;
+                let mut r3;
+
+                let mut len = buff.len();
+
+                while self >= 10000 {
+                    q  = self / 10;
+                    q1 = self / 100;
+                    q2 = self / 1000;
+                    q3 = self / 10000;
+
+                    r  = (self % 10) as u8  + ASCII_TO_INT_FACTOR;
+                    r1 = (q % 10) as u8  + ASCII_TO_INT_FACTOR;
+                    r2 = (q1 % 10) as u8  + ASCII_TO_INT_FACTOR;
+                    r3 = (q2 % 10) as u8  + ASCII_TO_INT_FACTOR;
+
+                    unsafe {
+                        //last index
+                        *buff.get_unchecked_mut(len - 1) = r;
+                        //second last
+                        *buff.get_unchecked_mut(len - 2) = r1;
+                        //third last
+                        *buff.get_unchecked_mut(len - 3) = r2;
+                        //fourth last
+                        *buff.get_unchecked_mut(len - 4) = r3;
+                    }
+
+                    len -= 4;
+                    self = q3;    
+                }
+                
+                //fixup loop.
+                for byte in unsafe {buff.get_unchecked_mut(..len) }.iter_mut().rev() {
                     q = self / 10;
                     r = (self % 10) as u8;
                     *byte = r + ASCII_TO_INT_FACTOR;
                     self = q;
+                //    len -= 1;
+                    
+                    if self == 0 { break }
                 }
+                
             }
+            // fn int_to_bytes(mut self, buff: &mut [u8]) -> &mut [u8] {
+            //     let mut q;
+            //     let mut r;
+
+            //     for byte in buff.iter_mut().rev() {
+            //         q = self / 10;
+            //         r = (self % 10) as u8;
+            //         *byte = r + ASCII_TO_INT_FACTOR;
+            //         self = q;
+            //         if self == 0 { break }
+            //     }
+            //     buff
+            // }
         }
     );
 }
@@ -270,6 +325,8 @@ impl IntoAscii for u8 {
             r = (self % 10) as u8;
             *byte = r + ASCII_TO_INT_FACTOR;
             self = q;
+
+            if self == 0 { break }
         }
     }
 }
@@ -279,10 +336,37 @@ impl_unsigned_conversions!(u16, POW10_U16, POW10_U16_LEN);
 impl_unsigned_conversions!(u32, POW10_U32, POW10_U32_LEN);
 impl_unsigned_conversions!(u64, POW10_U64, POW10_U64_LEN);
 
+macro_rules! impl_signed_conversions {
+    ($int:ty, $unsigned_version:ty) => {
+        impl FromAscii for $int {
+            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+                if bytes.starts_with(b"-") {
+                    Ok(<$unsigned_version>::bytes_to_int(&bytes[1..])? as Self * -1)
+                }
+                else {
+                    Ok(<$unsigned_version>::bytes_to_int(bytes)? as Self)
+                }
+            }
+        }
+    }
+}
+
+impl_signed_conversions!(i8, u8);
+impl_signed_conversions!(i16, u16);
+impl_signed_conversions!(i32, u32);
+impl_signed_conversions!(i64, u64);
+
 #[cfg(test)]
 mod test_itoa {
     use super::*;
 
+    #[test]
+    fn negative_parse() {
+        assert_eq!(i32::atoi(b"-123"), Ok(-123));
+        assert_eq!(i32::atoi(b"123"), Ok(123));
+
+        assert_eq!(i32::atoi(b"123e"), Err(()));
+    }
     #[test]
     fn test_itoa() {
         let n = 9987u32;
