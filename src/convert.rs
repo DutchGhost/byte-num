@@ -232,7 +232,7 @@ macro_rules! impl_unsigned_conversions {
 
                 let mut len = buff.len();
 
-                while self >= 10000 {
+                while self >= 10_000 {
                     q  = self / 10;
                     q1 = self / 100;
                     q2 = self / 1000;
@@ -243,29 +243,32 @@ macro_rules! impl_unsigned_conversions {
                     r3 =    (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
 
                     unsafe {
-                        //last index
+                        // last index
                         *buff.get_unchecked_mut(len - 1) = r;
-                        //second last
+                        // second last
                         *buff.get_unchecked_mut(len - 2) = r1;
-                        //third last
+                        // third last
                         *buff.get_unchecked_mut(len - 3) = r2;
-                        //fourth last
+                        // fourth last
                         *buff.get_unchecked_mut(len - 4) = r3;
                     }
 
                     len -= 4;
-                    self /= 10000
+                    self /= 10_000;
                 }
                 
-                //fixup loop.
+                //fixup loop. This might not be run if self was a multiple of 10_000
                 for byte in unsafe {buff.get_unchecked_mut(..len) }.iter_mut().rev() {
                     q = self / 10;
                     r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
+
+                    //there's nothing more to do.
                     if q == 0 { return }
                     self = q;
                 }
             }
+            
             // #[inline]
             // fn int_to_bytes(mut self, buff: &mut [u8]) {
             //     let mut q;

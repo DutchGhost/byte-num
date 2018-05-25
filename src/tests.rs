@@ -81,7 +81,7 @@ pub mod bench_into_ascii {
         }
 
         #[bench]
-        fn bench_u16_vec_sd(b: &mut Bencher) {
+        fn bench_u16_vec_std(b: &mut Bencher) {
             b.iter(|| {
                 for item in INT_U16.iter() {
                     format!("{}", item).into_bytes();
@@ -99,7 +99,7 @@ pub mod bench_into_ascii {
         }
 
         #[bench]
-        fn bench_u64_vec_sd(b: &mut Bencher) {
+        fn bench_u64_vec_std(b: &mut Bencher) {
             b.iter(|| {
                 for item in INT_U64.iter() {
                     format!("{}", item).into_bytes();
@@ -117,7 +117,7 @@ pub mod bench_into_ascii {
         }
 
         #[bench]
-        fn bench_100_u32_vec_sd(b: &mut Bencher) {
+        fn bench_100_u32_vec_std(b: &mut Bencher) {
             b.iter(|| {
                 for item in INT_U32.iter() {
                     format!("{}", item).into_bytes();
