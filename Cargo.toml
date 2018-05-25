@@ -1,10 +1,10 @@
 [package]
-name = "hypernums"
+name = "byte-num"
 version = "0.1.0"
 authors = ["DutchGhost <kasper199914@gmail.com>"]
 description = "Crate for converting numbers to bytes, and bytes to numbers"
 license = "MIT"
-repository = "https://github.com/DutchGhost/hypernums.git"
+repository = "https://github.com/DutchGhost/byte-num.git"
 
 [dependencies]
 
