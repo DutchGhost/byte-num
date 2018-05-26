@@ -12,6 +12,16 @@ pub mod bench_from_ascii {
                                     "730372", "5628493", "6712398", "987234", "28764", "7", "2", "98724", "9", "10", "123", "83",
                                     "287", "178", "372", "876", "7019"];
 
+    const STRING_U64: [&str; 25] = ["987245987", "876249", "1786235", "987234", "87230945", "786349276", "8763240", "83638730",
+                                    "730372", "5628493", "6712398", "987234", "28764", "7982375", "2982874", "98724", "9928374", "198740", "128833", "88373",
+                                    "2898747", "17837368", "37235362", "872346", "7019"];
+
+    #[bench]
+    fn bench_u64_from_ascii(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(STRING_U64.iter().cloned().map(u64::atoi).all(|n| n.is_ok()), true);
+        })
+    }
     #[bench]
     fn bench_u16_from_ascii(b: &mut Bencher) {
         b.iter(|| {
@@ -34,6 +44,12 @@ pub mod bench_from_ascii {
     }
 
     #[bench]
+    fn bench_u32_from_ascii_simd(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(STRING_U32.iter().cloned().map(u32::atoi).all(|n| n.is_ok()), true);
+        })
+    }
+    #[bench]
     fn bench_u32_std_parse(b: &mut Bencher) {
         b.iter(|| {
             assert_eq!(STRING_U32.iter().cloned().map(|s| s.parse::<u32>()).all(|n| n.is_ok()), true)
@@ -41,6 +57,28 @@ pub mod bench_from_ascii {
     }
 }
 
+#[cfg(all(feature="nightly", feature="simd"))]
+pub mod bench_simd {
+    use convert_simd;
+    use test::Bencher;
+
+
+    const STRING_U32: [&str; 25] = ["987245987", "876249", "1786235", "987234", "8723095", "786349276", "8763240", "83638730",
+                                    "730372", "5628493", "6712398", "987234", "28764", "7", "2", "98724", "9", "10", "123", "83",
+                                    "287", "178", "372", "876", "7019"];
+
+    const STRING_U64: [&str; 25] = ["987245987", "876249", "1786235", "987234", "87230945", "786349276", "8763240", "83638730",
+                                    "730372", "5628493", "6712398", "987234", "28764", "7982375", "2982874", "98724", "9928374", "198740", "128833", "88373",
+                                    "2898747", "17837368", "37235362", "872346", "7019"];
+
+    #[bench]
+    fn bench_u32_from_ascii(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(STRING_U32.iter().cloned().map(u32::atoi_simd).all(|n| n.is_ok()), true);
+        })
+    }                       
+
+}
 pub mod bench_into_ascii {
 
     use convert::IntoAscii;

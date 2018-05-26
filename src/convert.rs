@@ -1,9 +1,9 @@
-const ASCII_TO_INT_FACTOR: u8 = 48;
+pub const ASCII_TO_INT_FACTOR: u8 = 48;
 
 const POW10_U8_LEN: usize = 3;
 const POW10_U16_LEN: usize = 5;
-const POW10_U32_LEN: usize = 10;
-const POW10_U64_LEN: usize = 20;
+pub const POW10_U32_LEN: usize = 10;
+pub const POW10_U64_LEN: usize = 20;
 
 //all powers of 10 that fit in a u8
 const POW10_U8: [u8; 3] = [
@@ -20,7 +20,7 @@ const POW10_U16: [u16; 5] = [
     1
 ];
 
-const POW10_U32: [u32; 10] = [
+pub const POW10_U32: [u32; 10] = [
     1000000000,
     100000000,
     10000000,
@@ -33,7 +33,7 @@ const POW10_U32: [u32; 10] = [
     1,
 ];
 
-const POW10_U64: [u64; 20] = [
+pub const POW10_U64: [u64; 20] = [
         10000000000000000000,
         1000000000000000000,
         100000000000000000,
