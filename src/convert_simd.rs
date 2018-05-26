@@ -1,4 +1,4 @@
-use std::simd::{u8x4, u32x4, u64x4, FromBits};
+use std::simd::{u8x4, u32x4, u64x4};
 
 use convert::{POW10_U32, POW10_U64, ASCII_TO_INT_FACTOR, POW10_U32_LEN, POW10_U64_LEN};
 
@@ -6,6 +6,7 @@ const ASCII_TO_INT_VEC: u8x4 = u8x4::new(ASCII_TO_INT_FACTOR, ASCII_TO_INT_FACTO
 const RANGE: u8x4 = u8x4::new(9, 9, 9, 9);
 
 pub trait FromAsciiSIMD: Sized {
+    #[inline]
     fn atoi_simd<S: AsRef<[u8]>>(s: S) -> Result<Self, ()> {
         Self::bytes_to_int_simd(s.as_ref())
     }
@@ -14,13 +15,15 @@ pub trait FromAsciiSIMD: Sized {
 }
 
 macro_rules! impl_unsigned_conversion_simd {
-    ($int:ty, $simd_type:ty, $const_table:ident, $const_table_len:ident) => (
+    ($int:ty, $simd_type:ident, $const_table:ident, $const_table_len:ident) => (
         impl FromAsciiSIMD for $int {
-            fn bytes_to_int_simd(mut bytes: [u8]) -> Result<Self, ()> {
+            
+            #[inline]
+            fn bytes_to_int_simd(mut bytes: &[u8]) -> Result<Self, ()> {
                 
                 let mut len = bytes.len();
                 let mut idx = $const_table_len - len;
-                
+
                 let mut simd_result = $simd_type::new(0, 0, 0, 0);
 
                 while len >= 4 {
@@ -33,12 +36,12 @@ macro_rules! impl_unsigned_conversion_simd {
                         parse_current -= ASCII_TO_INT_VEC;
 
                         // check any if them is larger than 9, if so: return an Error.
-                        if v.gt(RANGE).any() {
+                        if parse_current.gt(RANGE).any() {
                             return Err(());
                         }
 
                         let multiply = $simd_type::load_unaligned_unchecked($const_table.get_unchecked(idx..idx + 4));
-                        let mut r = $simd_type::from(v) * multiply;
+                        let r = $simd_type::from(parse_current) * multiply;
                         
                         simd_result += r;
                         len -= 4;
@@ -70,3 +73,15 @@ macro_rules! impl_unsigned_conversion_simd {
 
 impl_unsigned_conversion_simd!(u32, u32x4, POW10_U32, POW10_U32_LEN);
 impl_unsigned_conversion_simd!(u64, u64x4, POW10_U64, POW10_U64_LEN);
+
+#[cfg(test)]
+mod test_itoa {
+    use super::*;
+
+    #[test]
+    fn parse_simd() {
+        assert_eq!(u32::atoi_simd(b"123"), Ok(123));
+
+        assert_eq!(u32::atoi_simd(b"123e"), Err(()));
+    }
+}

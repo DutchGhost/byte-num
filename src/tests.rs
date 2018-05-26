@@ -59,7 +59,7 @@ pub mod bench_from_ascii {
 
 #[cfg(all(feature="nightly", feature="simd"))]
 pub mod bench_simd {
-    use convert_simd;
+    use convert_simd::FromAsciiSIMD;
     use test::Bencher;
 
 

@@ -382,7 +382,7 @@ impl_signed_conversions!(i32, u32);
 impl_signed_conversions!(i64, u64);
 
 #[cfg(test)]
-mod test_itoa {
+mod test_parsing {
     use super::*;
 
     #[test]
