@@ -8,30 +8,30 @@ pub const POW10_U64_LEN: usize = 20;
 //all powers of 10 that fit in a u8
 const POW10_U8: [u8; 3] = [100, 10, 1];
 
-const POW10_U16: [u16; 5] = [10000, 1000, 100, 10, 1];
+const POW10_U16: [u16; 5] = [10_000, 1_000, 100, 10, 1];
 
 pub const POW10_U32: [u32; 10] = [
-    1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1,
+    1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1,
 ];
 
 pub const POW10_U64: [u64; 20] = [
-    10000000000000000000,
-    1000000000000000000,
-    100000000000000000,
-    10000000000000000,
-    1000000000000000,
-    100000000000000,
-    10000000000000,
-    1000000000000,
-    100000000000,
-    10000000000,
-    1000000000,
-    100000000,
-    10000000,
-    1000000,
-    100000,
-    10000,
-    1000,
+    10_000_000_000_000_000_000,
+    1_000_000_000_000_000_000,
+    100_000_000_000_000_000,
+    10_000_000_000_000_000,
+    1_000_000_000_000_000,
+    100_000_000_000_000,
+    10_000_000_000_000,
+    1_000_000_000_000,
+    100_000_000_000,
+    10_000_000_000,
+    1_000_000_000,
+    100_000_000,
+    10_000_000,
+    1_000_000,
+    100_000,
+    10_000,
+    1_000,
     100,
     10,
     1,
@@ -133,9 +133,9 @@ pub trait IntoAscii {
 
 macro_rules! atoi_unroll {
     ($d:ident, $r:ident, $bytes:expr, $idx:expr, $offset:expr, $const_table:ident) => {
-        let $d = ($bytes
+        let $d = Self::from($bytes
             .get_unchecked($offset)
-            .wrapping_sub(ASCII_TO_INT_FACTOR)) as Self;
+            .wrapping_sub(ASCII_TO_INT_FACTOR));
 
         //if the digit is greater than 9, something went terribly horribly wrong.
         //return an Err(())
@@ -282,12 +282,14 @@ impl IntoAscii for u8 {
     #[inline]
     fn digits10(self) -> usize {
         if self < 10 {
-            return 1;
+            1
         }
-        if self < 100 {
-            return 2;
+        else if self < 100 {
+            2
         }
-        return 3;
+        else {
+            3
+        }
     }
 
     #[inline]
@@ -319,8 +321,8 @@ macro_rules! impl_signed_conversions {
                 if bytes.starts_with(b"-") {
                     unsafe {
                         Ok(
-                            <$unsigned_version>::bytes_to_int(bytes.get_unchecked(1..))? as Self
-                                * -1,
+                            -(<$unsigned_version>::bytes_to_int(bytes.get_unchecked(1..))? as Self)
+
                         )
                     }
                 } else {
