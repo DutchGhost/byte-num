@@ -60,9 +60,11 @@ macro_rules! impl_unsigned_conversion_simd {
 
                 for offset in 0..len {
                     unsafe {
-                        let d = Self::from(bytes
-                            .get_unchecked(offset)
-                            .wrapping_sub(ASCII_TO_INT_FACTOR));
+                        let d = Self::from(
+                            bytes
+                                .get_unchecked(offset)
+                                .wrapping_sub(ASCII_TO_INT_FACTOR),
+                        );
                         if d > 9 {
                             return Err(());
                         }
