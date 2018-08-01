@@ -1,5 +1,7 @@
 use std::simd::{u32x4, u64x4, u8x4};
 
+use std::arch::x86_64::*;
+
 use convert::{POW10_U32, POW10_U32_LEN, POW10_U64, POW10_U64_LEN, ASCII_TO_INT_FACTOR};
 
 const ASCII_TO_INT_VEC: u8x4 = u8x4::new(

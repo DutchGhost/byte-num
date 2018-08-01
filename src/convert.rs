@@ -125,7 +125,7 @@ pub trait IntoAscii {
     ///
     ///     54321u64.int_to_bytes(&mut v);
     ///     assert_eq!(v, [b'5', b'4', b'3', b'2', b'1']);
-    ///     
+    ///
     ///     // if the buffer is larger than the number of digits, it fills with 0.
     ///     123u8.int_to_bytes(&mut v);
     ///     assert_eq!(v, [b'5', b'4', b'1', b'2', b'3']);
@@ -135,7 +135,7 @@ pub trait IntoAscii {
     ///     12u8.int_to_bytes(&mut v[..2]);
     ///     648u32.int_to_bytes(&mut v[2..]);
     ///     assert_eq!(v, [b'1', b'2', b'6', b'4', b'8']);
-    ///     
+    ///
     /// }
     fn int_to_bytes(self, buff: &mut [u8]);
 }
@@ -194,18 +194,10 @@ macro_rules! impl_unsigned_conversions {
                 let mut result = 1;
 
                 loop {
-                    if self < 10 {
-                        return result;
-                    }
-                    if self < 100 {
-                        return result + 1;
-                    }
-                    if self < 1000 {
-                        return result + 2;
-                    }
-                    if self < 10000 {
-                        return result + 3;
-                    }
+                    if self < 10 { return result }
+                    if self < 100 { return result + 1 }
+                    if self < 1000 { return result + 2 }
+                    if self < 10000 { return result + 3 }
 
                     self /= 10_000;
                     result += 4;
@@ -226,14 +218,11 @@ macro_rules! impl_unsigned_conversions {
                     let r2 = (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
                     let r3 = (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
 
+                    // update the last 4 indecies
                     unsafe {
-                        // last index
                         *buff.get_unchecked_mut(len - 1) = r;
-                        // second last
                         *buff.get_unchecked_mut(len - 2) = r1;
-                        // third last
                         *buff.get_unchecked_mut(len - 3) = r2;
-                        // fourth last
                         *buff.get_unchecked_mut(len - 4) = r3;
                     }
 
@@ -251,6 +240,7 @@ macro_rules! impl_unsigned_conversions {
                     if q == 0 {
                         return;
                     }
+
                     self = q;
                 }
             }
@@ -323,6 +313,49 @@ impl_unsigned_conversions!(u16, POW10_U16, POW10_U16_LEN);
 impl_unsigned_conversions!(u32, POW10_U32, POW10_U32_LEN);
 impl_unsigned_conversions!(u64, POW10_U64, POW10_U64_LEN);
 
+#[cfg(target_pointer_width = "32")]
+impl FromAscii for usize {
+    #[inline]
+    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+        Ok(u32::bytes_to_int(bytes)? as Self)
+    }
+}
+
+#[cfg(target_pointer_width = "64")]
+impl FromAscii for usize {
+    #[inline]
+    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+        Ok(u64::bytes_to_int(bytes)? as Self)
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+impl IntoAscii for usize {
+    #[inline]
+    fn digits10(self) -> Self {
+        u32::digits10(self as u32)
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        u32::int_to_bytes(self as u32, buff);
+    }
+}
+
+#[cfg(target_pointer_width = "64")]
+impl IntoAscii for usize {
+    #[inline]
+    fn digits10(self) -> Self {
+        u64::digits10(self as u64)
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        u64::int_to_bytes(self as u64, buff);
+    }
+}
+
+
 macro_rules! impl_signed_conversions {
     ($int:ty, $unsigned_version:ty) => {
         impl FromAscii for $int {
@@ -377,6 +410,7 @@ impl_signed_conversions!(i8, u8);
 impl_signed_conversions!(i16, u16);
 impl_signed_conversions!(i32, u32);
 impl_signed_conversions!(i64, u64);
+impl_signed_conversions!(isize, usize);
 
 #[cfg(test)]
 mod test_parsing {
