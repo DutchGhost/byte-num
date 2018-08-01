@@ -61,15 +61,15 @@ pub trait FromAscii: Sized {
     /// ```
     /// # Safety
     /// It should be noted that trying trying to convert a string that does not fit in the chosen integer,
-    /// causes undifined behaviour, and gives a panic in debug builds.
+    /// wraps around.
     /// For example:
     /// ```
     /// extern crate byte_num;
     /// use byte_num::convert::FromAscii;
     ///
     /// fn main () {
-    ///     let n = std::panic::catch_unwind(|| u8::atoi("257"));
-    ///     assert!(n.is_err(), true);
+    ///     let n = u8::atoi("257");
+    ///     assert_eq!(n, Ok(1));
     /// }
     ///```
     #[inline]
@@ -173,7 +173,12 @@ macro_rules! impl_unsigned_conversions {
                         atoi_unroll!(d3, r3, bytes, idx, 2, $const_table);
                         atoi_unroll!(d4, r4, bytes, idx, 3, $const_table);
 
-                        result += r1 + r2 + r3 + r4;
+                        /*
+                            @NOTE: changed `result += r1 + r2 + r3 + r4;` to the wrapping add version on 1 august 2018,
+                            to prevent debug builds from panicing due to overflow.
+                        */
+                        result = result.wrapping_add(r1 + r2 + r3 + r4);
+
                         len -= 4;
                         idx += 4;
                         bytes = bytes.get_unchecked(4..);
@@ -244,20 +249,6 @@ macro_rules! impl_unsigned_conversions {
                     self = q;
                 }
             }
-
-            // #[inline]
-            // fn int_to_bytes(mut self, buff: &mut [u8]) {
-            //     let mut q;
-            //     let mut r;
-
-            //     for byte in buff.iter_mut().rev() {
-            //         q = self / 10;
-            //         r = (self % 10) as u8;
-            //         *byte = r + ASCII_TO_INT_FACTOR;
-            //         self = q;
-            //         if self == 0 { break }
-            //     }
-            // }
         }
     };
 }
@@ -272,7 +263,9 @@ impl FromAscii for u8 {
         unsafe {
             for offset in 0..len {
                 atoi_unroll!(d, r, bytes, idx, offset, POW10_U8);
-                result += r;
+
+                // @NOTE: changed from `result += r` to this, due to overflow panics on debug builds.
+                result = result.wrapping_add(r);
             }
             Ok(result)
         }
@@ -329,33 +322,6 @@ impl FromAscii for usize {
     }
 }
 
-#[cfg(target_pointer_width = "32")]
-impl IntoAscii for usize {
-    #[inline]
-    fn digits10(self) -> Self {
-        u32::digits10(self as u32)
-    }
-
-    #[inline]
-    fn int_to_bytes(self, buff: &mut [u8]) {
-        u32::int_to_bytes(self as u32, buff);
-    }
-}
-
-#[cfg(target_pointer_width = "64")]
-impl IntoAscii for usize {
-    #[inline]
-    fn digits10(self) -> Self {
-        u64::digits10(self as u64)
-    }
-
-    #[inline]
-    fn int_to_bytes(self, buff: &mut [u8]) {
-        u64::int_to_bytes(self as u64, buff);
-    }
-}
-
-
 macro_rules! impl_signed_conversions {
     ($int:ty, $unsigned_version:ty) => {
         impl FromAscii for $int {
@@ -406,6 +372,32 @@ macro_rules! impl_signed_conversions {
     };
 }
 
+#[cfg(target_pointer_width = "32")]
+impl IntoAscii for usize {
+    #[inline]
+    fn digits10(self) -> Self {
+        u32::digits10(self as u32)
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        u32::int_to_bytes(self as u32, buff);
+    }
+}
+
+#[cfg(target_pointer_width = "64")]
+impl IntoAscii for usize {
+    #[inline]
+    fn digits10(self) -> Self {
+        u64::digits10(self as u64)
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        u64::int_to_bytes(self as u64, buff);
+    }
+}
+
 impl_signed_conversions!(i8, u8);
 impl_signed_conversions!(i16, u16);
 impl_signed_conversions!(i32, u32);
@@ -417,16 +409,23 @@ mod test_parsing {
     use super::*;
 
     #[test]
-    fn negative_parse() {
+    fn bytes_to_int() {
         assert_eq!(i32::atoi(b"-123"), Ok(-123));
         assert_eq!(i32::atoi(b"123"), Ok(123));
 
         assert_eq!(i32::atoi(b"123e"), Err(()));
+
+        assert_eq!(isize::atoi(b"9223372036854775807"), Ok(isize::max_value()));
+        assert_eq!(isize::atoi(b"9223372036854775808"), Ok(isize::min_value()));
+
+        assert_eq!(usize::atoi(b"18446744073709551615"), Ok(usize::max_value()));
+        assert_eq!(usize::atoi(b"18446744073709551616"), Ok(usize::min_value()));
     }
     #[test]
     fn test_itoa() {
-        let n = 9987u32;
 
-        assert_eq!(n.itoa(), [b'9', b'9', b'8', b'7']);
+        assert_eq!(9987u32.itoa(), [b'9', b'9', b'8', b'7']);
+
+        assert_eq!(isize::max_value().itoa(), [b'9', b'2', b'2', b'3', b'3', b'7', b'2', b'0', b'3', b'6', b'8', b'5', b'4', b'7', b'7', b'5', b'8', b'0', b'7'])
     }
 }
