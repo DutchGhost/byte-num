@@ -60,7 +60,7 @@ pub trait FromAscii: Sized {
     /// }
     /// ```
     /// # Safety
-    /// It should be noted that trying trying to convert a string that does not fit in the chosen integer,
+    /// It should be noted that trying to convert a string that does not fit in the chosen integer type,
     /// wraps around.
     /// For example:
     /// ```

@@ -1,4 +1,4 @@
-use std::simd::{u32x4, u64x4, u8x4};
+use stdsimd::simd::{u32x4, u64x4, u8x4};
 
 use std::arch::x86_64::*;
 
