@@ -2,7 +2,7 @@
 pub mod bench_from_ascii {
     use test::Bencher;
 
-    use convert::FromAscii;
+    use convert::{FromAscii};
     //the benches use .cloned(), since iterating over an array of &str's gives &&str's.
 
     const STRING_U16: [&str; 25] = [
@@ -72,6 +72,16 @@ pub mod bench_from_ascii {
             assert_eq!(
                 STRING_U64.iter().cloned().map(u64::atoi).all(|n| n.is_ok()),
                 true
+            );
+        })
+    }
+
+    #[bench]
+    fn bench_u64_from_ascii_unchecked(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(
+                unsafe { STRING_U64.iter().cloned().map(|b| unsafe { u64::atoi_unchecked(b)  }).for_each(|_| {}) },
+                ()
             );
         })
     }
