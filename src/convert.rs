@@ -506,10 +506,10 @@ macro_rules! impl_signed_conversions {
                     let n = self * -1;
                     let size = Self::digits10(n) + 1;
 
-                    let mut buff = vec![0; size];
-                    unsafe {
-                        *buff.get_unchecked_mut(0) = b'-';
-                    }
+                    let mut buff = vec![b'-'; size];
+                    // unsafe {
+                    //     *buff.get_unchecked_mut(0) = b'-';
+                    // }
                     n.int_to_bytes(&mut buff);
                     buff
                 } else {
