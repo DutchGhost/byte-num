@@ -1,8 +1,8 @@
 [package]
 name = "byte-num"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["DutchGhost <kasper199914@gmail.com>"]
-description = "Crate for converting numbers to bytes, and bytes to numbers"
+description = "Crate for converting numbers to bytes, and bytes to numbers in base 10!"
 license = "MIT"
 repository = "https://github.com/DutchGhost/byte-num.git"
 
@@ -10,4 +10,3 @@ repository = "https://github.com/DutchGhost/byte-num.git"
 
 [features]
 nightly = []
-#simd = []
