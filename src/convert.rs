@@ -10,7 +10,7 @@ const POW10_U8: [u8; 3] = [100, 10, 1];
 
 const POW10_U16: [u16; 5] = [10_000, 1_000, 100, 10, 1];
 
-pub const POW10_U32: [u32; 10] = [
+const POW10_U32: [u32; 10] = [
     1_000_000_000,
     100_000_000,
     10_000_000,
@@ -23,7 +23,7 @@ pub const POW10_U32: [u32; 10] = [
     1,
 ];
 
-pub const POW10_U64: [u64; 20] = [
+const POW10_U64: [u64; 20] = [
     10_000_000_000_000_000_000,
     1_000_000_000_000_000_000,
     100_000_000_000_000_000,
@@ -431,7 +431,7 @@ macro_rules! impl_signed_conversions {
                     let size = Self::digits10(n) + 1;
 
                     let mut buff = vec![b'-'; size];
-                    
+
                     n.int_to_bytes(&mut buff);
                     buff
                 } else {
