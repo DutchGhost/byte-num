@@ -1,19 +1,11 @@
 #![cfg_attr(feature = "nightly", feature(test))]
-//#![cfg_attr(feature = "simd", feature(stdsimd))]
 
-//! This crates offers functions to convert from (unsigned for now) integers to bytes, and from bytes to integers.
-//! The goal of this crate is to do it's operations fast. This also means that weird corner cases, are not really handled.
-//! If such a corner case can occur, this is noted in the # Safety section, and shows the corner case.
-
+//! This crate provides function to convert from and into bytes, in base 10.
+//! The functions are based on the fastware talks of Andrei Alexandrescu. (https://www.youtube.com/watch?v=o4-CwDo2zpg)
 pub mod convert;
 
 #[cfg(feature = "nightly")]
 extern crate test;
-
-//@NOTE: make simd somehow work someday?
-// #[cfg(feature = "simd")]
-// extern crate stdsimd;
-// pub mod convert_simd;
 
 #[cfg(test)]
 mod tests;
