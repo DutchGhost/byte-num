@@ -50,7 +50,8 @@ const POW10_U64: [u64; 20] = [
 pub trait FromAscii: Sized {
     /// The function performing the conversion from a byteslice to a number.
     /// It takes anything that can be transformed into a byte-slice.
-    /// 
+    /// An empty slice returns the number 0.
+    ///
     /// # Examples
     /// ```
     /// extern crate byte_num;
@@ -62,7 +63,7 @@ pub trait FromAscii: Sized {
     /// }
     /// ```
     /// # Safety
-    /// It should be noted that trying to convert a string that does not fit in the chosen integer type,
+    /// It should be noted that trying to convert a slice that does not fit in the chosen integer type,
     /// wraps around.
     /// For example:
     /// ```
@@ -73,7 +74,14 @@ pub trait FromAscii: Sized {
     ///     let n = u8::atoi("257");
     ///     assert_eq!(n, Ok(1));
     /// }
-    ///```
+    /// ```
+    /// If you try to convert a slice with a length longer than the maximum digits of the integer type, this function will panic.
+    /// The maximum digits for:
+    /// - 64 bit integers is 20
+    /// - 32 bit integers is 10
+    /// - 16 bit integers is 5
+    /// - 8 bit integers is 3
+    ///
     #[inline]
     fn atoi<S: AsRef<[u8]>>(s: S) -> Result<Self, ()> {
         Self::bytes_to_int(s.as_ref())
@@ -83,9 +91,9 @@ pub trait FromAscii: Sized {
     fn bytes_to_int(s: &[u8]) -> Result<Self, ()>;
 
     /// Converts bytes to integers, but does not check if the bytes are valid digits.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Because this function does not check if the bytes are valid digits, this is noted `unsafe`.
     #[inline]
     unsafe fn atoi_unchecked<S: AsRef<[u8]>>(s: S) -> Self {
@@ -98,7 +106,7 @@ pub trait FromAscii: Sized {
 /// This trait converts integers to bytes.
 pub trait IntoAscii {
     /// The function performing the convertion from a number to a Vec<u8>, containing the digits of the number.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// extern crate byte_num;
@@ -189,10 +197,6 @@ macro_rules! impl_unsigned_conversions {
                         atoi_unroll!(d3, r3, bytes, idx, 2, $const_table);
                         atoi_unroll!(d4, r4, bytes, idx, 3, $const_table);
 
-                        /*
-                            @NOTE: changed `result += r1 + r2 + r3 + r4;` to the wrapping add version on 1 august 2018,
-                            to prevent debug builds from panicing due to overflow.
-                        */
                         result = result.wrapping_add(r1 + r2 + r3 + r4);
 
                         len -= 4;
@@ -202,7 +206,7 @@ macro_rules! impl_unsigned_conversions {
 
                     for offset in 0..len {
                         atoi_unroll!(d, r, bytes, idx, offset, $const_table);
-                        result += r;
+                        result = result.wrapping_add(r);
                     }
                     return Ok(result);
                 }
@@ -235,9 +239,9 @@ macro_rules! impl_unsigned_conversions {
                 }
 
                 for offset in 0..len {
-                    let r1 = Self::from(bytes.get_unchecked(offset).wrapping_sub(ASCII_TO_INT_FACTOR));
-                    let d1 = r1 * $const_table.get_unchecked(idx + offset);
-                    result = result.wrapping_add(d1);
+                    let r = Self::from(bytes.get_unchecked(offset).wrapping_sub(ASCII_TO_INT_FACTOR));
+                    let d = r * $const_table.get_unchecked(idx + offset);
+                    result = result.wrapping_add(d);
                 }
             
             result
@@ -316,7 +320,6 @@ impl FromAscii for u8 {
             for offset in 0..len {
                 atoi_unroll!(d, r, bytes, idx, offset, POW10_U8);
 
-                // @NOTE: changed from `result += r` to this, due to overflow panics on debug builds.
                 result = result.wrapping_add(r);
             }
             Ok(result)
@@ -330,9 +333,11 @@ impl FromAscii for u8 {
         let idx = POW10_U8_LEN - len;
 
         for offset in 0..len {
-            let r1 = Self::from(bytes.get_unchecked(offset).wrapping_sub(ASCII_TO_INT_FACTOR));
-            let d1 = r1 * POW10_U8.get_unchecked(idx + offset);
-            result = result.wrapping_add(d1);
+            let r = Self::from(bytes.get_unchecked(offset).wrapping_sub(
+                ASCII_TO_INT_FACTOR,
+            ));
+            let d = r * POW10_U8.get_unchecked(idx + offset);
+            result = result.wrapping_add(d);
         }
 
         result
@@ -426,20 +431,19 @@ macro_rules! impl_signed_conversions {
             where
                 Self: Copy,
             {
-                if self < &0 {
+                let (n, size) = if self < &0 {
                     let n = self * -1;
-                    let size = Self::digits10(n) + 1;
-
-                    let mut buff = vec![b'-'; size];
-
-                    n.int_to_bytes(&mut buff);
-                    buff
-                } else {
-                    let size = Self::digits10(*self);
-                    let mut buff = vec![0; size];
-                    self.int_to_bytes(&mut buff);
-                    buff
+                    (n, Self::digits10(n) + 1)
                 }
+                else {
+                    (*self, Self::digits10(*self))
+                };
+
+                // Fill buff with '-', on negative numbers,
+                // this means index 0 is not written to by int_to_bytes(), and is set correctly to a '-'
+                let mut buff = vec![b'-'; size];
+                n.int_to_bytes(&mut buff);
+                buff
             }
 
             #[inline]
@@ -519,20 +523,48 @@ mod test_parsing {
 
         assert_eq!((-1).itoa(), [b'-', b'1']);
 
-        assert_eq!(isize::max_value().itoa(), [b'9', b'2', b'2', b'3', b'3', b'7', b'2', b'0', b'3', b'6', b'8', b'5', b'4', b'7', b'7', b'5', b'8', b'0', b'7'])
+        assert_eq!(
+            isize::max_value().itoa(),
+            [
+                b'9',
+                b'2',
+                b'2',
+                b'3',
+                b'3',
+                b'7',
+                b'2',
+                b'0',
+                b'3',
+                b'6',
+                b'8',
+                b'5',
+                b'4',
+                b'7',
+                b'7',
+                b'5',
+                b'8',
+                b'0',
+                b'7',
+            ]
+        )
     }
-    
+
     #[test]
     fn test_digits10() {
-        assert_eq!( (-99i8).digits10(), 2);
-        assert_eq!( (-99i16).digits10(), 2);
-        assert_eq!( (-99i32).digits10(), 2);
-        assert_eq!( (-99i64).digits10(), 2);
-        assert_eq!( (-99isize).digits10(), 2);
+        assert_eq!((-99i8).digits10(), 2);
+        assert_eq!((-99i16).digits10(), 2);
+        assert_eq!((-99i32).digits10(), 2);
+        assert_eq!((-99i64).digits10(), 2);
+        assert_eq!((-99isize).digits10(), 2);
     }
 
     #[test]
     fn test_atoi_unchecked() {
         assert_eq!(unsafe { u64::atoi_unchecked("12345") }, 12345);
+    }
+
+    #[test]
+    fn test_atoi_long_str() {
+        assert_eq!(i64::atoi("12345678912345678912"), Ok(-6101065161363872704));
     }
 }

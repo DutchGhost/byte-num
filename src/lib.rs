@@ -4,6 +4,8 @@
 //! The functions are based on the fastware talks of Andrei Alexandrescu. (https://www.youtube.com/watch?v=o4-CwDo2zpg)
 pub mod convert;
 
+pub mod test_impl;
+
 #[cfg(feature = "nightly")]
 extern crate test;
 
