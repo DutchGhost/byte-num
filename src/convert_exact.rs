@@ -102,6 +102,13 @@ macro_rules! impl_unsigned_conversions {
         impl FromAscii for $int {
             #[inline(always)]
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+                /*
+                    Place ourselves into the correct position (const_table.len() - bytes.len() ) of a constant table containing descending powers of 10.
+                    Then for each byte, convert it to an integer, and multiply by the corresponding power of 10. (This is unrolled 4 times)
+                    If converting the byte to an integer fails, return an Err(())
+
+                    Notice that the bytes get converted from the largest to the smallest.
+                */
                 let mut result: Self = 0;
                 let mut chunks = bytes.exact_chunks(4);
                 let mut idx: usize = $const_table.len() - bytes.len();
