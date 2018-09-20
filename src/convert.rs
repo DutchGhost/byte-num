@@ -189,21 +189,21 @@ macro_rules! impl_unsigned_conversions {
                 let mut result: Self = 0;
                 let mut len: usize = bytes.len();
                 let mut idx: usize = $const_table_len - len;
-
+        
                 unsafe {
                     while len >= 4 {
                         atoi_unroll!(d1, r1, bytes, idx, 0, $const_table);
                         atoi_unroll!(d2, r2, bytes, idx, 1, $const_table);
                         atoi_unroll!(d3, r3, bytes, idx, 2, $const_table);
                         atoi_unroll!(d4, r4, bytes, idx, 3, $const_table);
-
+        
                         result = result.wrapping_add(r1 + r2 + r3 + r4);
-
+        
                         len -= 4;
                         idx += 4;
                         bytes = bytes.get_unchecked(4..);
                     }
-
+        
                     for offset in 0..len {
                         atoi_unroll!(d, r, bytes, idx, offset, $const_table);
                         result = result.wrapping_add(r);
@@ -211,74 +211,84 @@ macro_rules! impl_unsigned_conversions {
                     return Ok(result);
                 }
             }
-
+        
             #[inline]
             unsafe fn bytes_to_int_unchecked(mut bytes: &[u8]) -> Self {
                 let mut result: Self = 0;
                 let mut len = bytes.len();
                 let mut idx: usize = $const_table_len - len;
-
+        
                 while len >= 4 {
-
                     let r1 = Self::from(bytes.get_unchecked(0).wrapping_sub(ASCII_TO_INT_FACTOR));
                     let r2 = Self::from(bytes.get_unchecked(1).wrapping_sub(ASCII_TO_INT_FACTOR));
                     let r3 = Self::from(bytes.get_unchecked(2).wrapping_sub(ASCII_TO_INT_FACTOR));
                     let r4 = Self::from(bytes.get_unchecked(3).wrapping_sub(ASCII_TO_INT_FACTOR));
-
+        
                     let d1 = r1 * $const_table.get_unchecked(idx);
                     let d2 = r2 * $const_table.get_unchecked(idx + 1);
                     let d3 = r3 * $const_table.get_unchecked(idx + 2);
                     let d4 = r4 * $const_table.get_unchecked(idx + 3);
-
+        
                     result = result.wrapping_add(d1 + d2 + d3 + d4);
-
+        
                     len -= 4;
                     idx += 4;
-
+        
                     bytes = bytes.get_unchecked(4..);
                 }
-
+        
                 for offset in 0..len {
-                    let r = Self::from(bytes.get_unchecked(offset).wrapping_sub(ASCII_TO_INT_FACTOR));
+                    let r = Self::from(
+                        bytes
+                            .get_unchecked(offset)
+                            .wrapping_sub(ASCII_TO_INT_FACTOR),
+                    );
                     let d = r * $const_table.get_unchecked(idx + offset);
                     result = result.wrapping_add(d);
                 }
-            
+        
                 result
-
             }
         }
-
+        
         impl IntoAscii for $int {
             #[inline]
             fn digits10(mut self) -> usize {
                 let mut result = 1;
-
+        
                 loop {
-                    if self < 10 { return result }
-                    if self < 100 { return result + 1 }
-                    if self < 1000 { return result + 2 }
-                    if self < 10000 { return result + 3 }
-
+                    if self < 10 {
+                        return result;
+                    }
+                    if self < 100 {
+                        return result + 1;
+                    }
+                    if self < 1000 {
+                        return result + 2;
+                    }
+                    if self < 10000 {
+                        return result + 3;
+                    }
+        
                     self /= 10_000;
                     result += 4;
                 }
             }
-
+        
             #[inline]
             fn int_to_bytes(mut self, buff: &mut [u8]) {
                 let mut len = buff.len();
-
+        
                 while self >= 10_000 {
                     let q = self / 10;
                     let q1 = self / 100;
                     let q2 = self / 1000;
-
+        
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     let r1 = (q % 10) as u8 + ASCII_TO_INT_FACTOR;
                     let r2 = (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
                     let r3 = (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
-
+        
                     // update the last 4 indecies
                     unsafe {
                         *buff.get_unchecked_mut(len - 1) = r;
@@ -286,22 +296,22 @@ macro_rules! impl_unsigned_conversions {
                         *buff.get_unchecked_mut(len - 3) = r2;
                         *buff.get_unchecked_mut(len - 4) = r3;
                     }
-
+        
                     len -= 4;
                     self /= 10_000;
                 }
-
+        
                 //fixup loop. This might not be run if self was a multiple of 10_000
                 for byte in unsafe { buff.get_unchecked_mut(..len) }.iter_mut().rev() {
                     let q = self / 10;
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
-
+        
                     //there's nothing more to do.
                     if q == 0 {
                         return;
                     }
-
+        
                     self = q;
                 }
             }
@@ -333,9 +343,11 @@ impl FromAscii for u8 {
         let idx = POW10_U8_LEN - len;
 
         for offset in 0..len {
-            let r = Self::from(bytes.get_unchecked(offset).wrapping_sub(
-                ASCII_TO_INT_FACTOR,
-            ));
+            let r = Self::from(
+                bytes
+                    .get_unchecked(offset)
+                    .wrapping_sub(ASCII_TO_INT_FACTOR),
+            );
             let d = r * POW10_U8.get_unchecked(idx + offset);
             result = result.wrapping_add(d);
         }
@@ -416,7 +428,7 @@ macro_rules! impl_signed_conversions {
                     Ok(<$unsigned_version>::bytes_to_int(bytes)? as Self)
                 }
             }
-
+        
             unsafe fn bytes_to_int_unchecked(bytes: &[u8]) -> Self {
                 if bytes.starts_with(b"-") {
                     -(<$unsigned_version>::bytes_to_int_unchecked(bytes.get_unchecked(1..)) as Self)
@@ -425,7 +437,7 @@ macro_rules! impl_signed_conversions {
                 }
             }
         }
-
+        
         impl IntoAscii for $int {
             fn itoa(&self) -> Vec<u8>
             where
@@ -434,29 +446,28 @@ macro_rules! impl_signed_conversions {
                 let (n, size) = if self < &0 {
                     let n = self * -1;
                     (n, Self::digits10(n) + 1)
-                }
-                else {
+                } else {
                     (*self, Self::digits10(*self))
                 };
-
+        
                 // Fill buff with '-', on negative numbers,
                 // this means index 0 is not written to by int_to_bytes(), and is set correctly to a '-'
                 let mut buff = vec![b'-'; size];
                 n.int_to_bytes(&mut buff);
                 buff
             }
-
+        
             #[inline]
             fn digits10(mut self) -> usize {
                 /*
-                    @NOTE: Verry important, some signed numbers get 'more digits' when casted to their unsigned version.
-                */
+                                            @NOTE: Verry important, some signed numbers get 'more digits' when casted to their unsigned version.
+                                        */
                 if self < 0 {
                     self *= -1;
                 }
                 (self as $unsigned_version).digits10()
             }
-
+        
             #[inline]
             fn int_to_bytes(self, buff: &mut [u8]) {
                 (self as $unsigned_version).int_to_bytes(buff);
@@ -518,7 +529,6 @@ mod test_parsing {
     }
     #[test]
     fn test_itoa() {
-
         assert_eq!(9987u32.itoa(), [b'9', b'9', b'8', b'7']);
 
         assert_eq!((-1).itoa(), [b'-', b'1']);
@@ -526,25 +536,8 @@ mod test_parsing {
         assert_eq!(
             isize::max_value().itoa(),
             [
-                b'9',
-                b'2',
-                b'2',
-                b'3',
-                b'3',
-                b'7',
-                b'2',
-                b'0',
-                b'3',
-                b'6',
-                b'8',
-                b'5',
-                b'4',
-                b'7',
-                b'7',
-                b'5',
-                b'8',
-                b'0',
-                b'7',
+                b'9', b'2', b'2', b'3', b'3', b'7', b'2', b'0', b'3', b'6', b'8', b'5', b'4', b'7',
+                b'7', b'5', b'8', b'0', b'7',
             ]
         )
     }
