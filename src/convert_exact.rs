@@ -106,14 +106,12 @@ where
 macro_rules! impl_unsigned_conversions {
     ($int:ty, $const_table:ident) => {
         impl FromAscii for $int {
-            /*
-                        1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
-                        2) For each byte:
-                            - substract 48, wrapping
-                            - validate it's less than 9
-                            - multiply with some power of 10
-                    */
-            #[inline(always)]
+            // 1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
+            // 2) For each byte:
+            //     - substract 48, wrapping
+            //     - validate it's less than 9
+            //     - multiply with some power of 10
+            #[inline]
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.len() > $const_table.len() {
                     return Err(ParseIntErr::Overflow);
@@ -153,6 +151,7 @@ macro_rules! impl_unsigned_conversions {
     // @NOTE: Specialize implementation for u8
     (@u8, $const_table:ident) => {
         impl FromAscii for u8 {
+            #[inline]
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.len() > $const_table.len() {
                     return Err(ParseIntErr::Overflow);

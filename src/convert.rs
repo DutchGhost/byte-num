@@ -459,9 +459,7 @@ macro_rules! impl_signed_conversions {
         
             #[inline]
             fn digits10(mut self) -> usize {
-                /*
-                                                    @NOTE: Verry important, some signed numbers get 'more digits' when casted to their unsigned version.
-                                                */
+                //@NOTE: Verry important, some signed numbers get 'more digits' when casted to their unsigned version.
                 if self < 0 {
                     self *= -1;
                 }
