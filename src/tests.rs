@@ -75,7 +75,7 @@ pub mod bench_from_ascii {
                     .iter()
                     .cloned()
                     .cycle()
-                    .take(1_000)
+                    .take(10_000)
                     .map(u64::atoi)
                     .all(|n| n.is_ok()),
                 true
@@ -91,7 +91,7 @@ pub mod bench_from_ascii {
                     .iter()
                     .cloned()
                     .cycle()
-                    .take(1_000)
+                    .take(10_000)
                     .map(|n| n.parse::<u64>())
                     .all(|n| n.is_ok()),
                 true
@@ -99,21 +99,23 @@ pub mod bench_from_ascii {
         })
     }
 
-    // #[bench]
-    // fn bench_u64_from_ascii_exact(b: &mut Bencher) {
-    //     b.iter(|| {
-    //         assert_eq!(
-    //             STRING_U64
-    //                 .iter()
-    //                 .cloned()
-    //                 .cycle()
-    //                 .take(1_000)
-    //                 .map(u64::atoi_exact)
-    //                 .all(|n| n.is_ok()),
-    //             true
-    //         );
-    //     })
-    // }
+    #[cfg(feature = "with_exact")]
+    #[bench]
+    fn bench_u64_from_ascii_exact(b: &mut Bencher) {
+        use convert_exact::FromAscii as EXACT;
+        b.iter(|| {
+            assert_eq!(
+                STRING_U64
+                    .iter()
+                    .cloned()
+                    .cycle()
+                    .take(10_000)
+                    .map(<u64 as EXACT>::atoi)
+                    .all(|n| n.is_ok()),
+                true
+            );
+        })
+    }
 
     #[bench]
     fn bench_u64_from_ascii_unchecked(b: &mut Bencher) {

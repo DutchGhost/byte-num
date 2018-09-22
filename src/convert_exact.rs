@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 const ASCII_TO_INT_FACTOR: u8 = 48;
 
 const POW10_U8: [u8; 3] = [100, 10, 1];
@@ -48,11 +50,11 @@ pub trait FromAscii: Sized {
     /// # Examples
     /// ```
     /// extern crate byte_num;
-    /// use byte_num::convert::FromAscii;
+    /// use byte_num::convert_exact::{ParseIntErr, FromAscii};
     ///
     /// fn main() {
     ///     assert_eq!(u32::atoi("1928"), Ok(1928));
-    ///     assert_eq!(u32::atoi("12e3"), Err(()));
+    ///     assert_eq!(u32::atoi("12e3"), Err(ParseIntErr::InvalidDigit('e')));
     /// }
     /// ```
     /// # Safety
@@ -61,75 +63,83 @@ pub trait FromAscii: Sized {
     /// For example:
     /// ```
     /// extern crate byte_num;
-    /// use byte_num::convert::FromAscii;
+    /// use byte_num::convert_exact::FromAscii;
     ///
     /// fn main () {
     ///     let n = u8::atoi("257");
     ///     assert_eq!(n, Ok(1));
     /// }
     /// ```
-    /// If you try to convert a slice with a length longer than the maximum digits of the integer type, this function will panic.
-    /// The maximum digits for:
-    /// - 64 bit integers is 20
-    /// - 32 bit integers is 10
-    /// - 16 bit integers is 5
-    /// - 8 bit integers is 3
-    ///
     #[inline]
-    fn atoi<S: AsRef<[u8]>>(s: S) -> Result<Self, ()> {
+    fn atoi<S: AsRef<[u8]>>(s: S) -> Result<Self, ParseIntErr> {
         Self::bytes_to_int(s.as_ref())
     }
 
-    fn bytes_to_int(s: &[u8]) -> Result<Self, ()>;
+    fn bytes_to_int(s: &[u8]) -> Result<Self, ParseIntErr>;
 }
 
-macro_rules! try_parse_byte {
-    ($byte:expr, $const_table:ident, $offset:expr) => {{
-        let d = Self::from($byte.wrapping_sub(ASCII_TO_INT_FACTOR));
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ParseIntErr {
+    /// Represents a character that could not be converted to a number.
+    InvalidDigit(char),
 
-        //if the digit is greater than 9, something went terribly horribly wrong.
-        //return an Err(())
-        if d > 9 {
-            return Err(());
-        }
+    /// Represents that parsing of the slice could not be started, the slice was too large.
+    Overflow,
+}
 
-        d * unsafe { $const_table.get_unchecked($offset) }
-    }};
+#[inline(always)]
+fn parse_byte<N>(byte: &u8, pow10: N) -> Result<N, ParseIntErr>
+where
+    N: From<u8> + Mul<Output = N>
+{
+    let d = byte.wrapping_sub(ASCII_TO_INT_FACTOR);
+
+    if d > 9 {
+        return Err(ParseIntErr::InvalidDigit(d.wrapping_add(ASCII_TO_INT_FACTOR) as char));
+    }
+
+    Ok(N::from(d) * pow10)
 }
 
 macro_rules! impl_unsigned_conversions {
     ($int:ty, $const_table:ident) => {
         impl FromAscii for $int {
+            /*
+                1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
+                2) For each byte:
+                    - substract 48, wrapping
+                    - validate it's less than 9
+                    - multiply with some power of 10
+            */
             #[inline(always)]
-            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
-                /*
-                    Place ourselves into the correct position (const_table.len() - bytes.len() ) of a constant table containing descending powers of 10.
-                    Then for each byte, convert it to an integer, and multiply by the corresponding power of 10. (This is unrolled 4 times)
-                    If converting the byte to an integer fails, return an Err(())
+            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
+                if bytes.len() > $const_table.len() {
+                    return Err(ParseIntErr::Overflow)
+                }
 
-                    Notice that the bytes get converted from the largest to the smallest.
-                */
                 let mut result: Self = 0;
                 let mut chunks = bytes.exact_chunks(4);
-                let mut idx: usize = $const_table.len() - bytes.len();
-        
-                for chunk in chunks.by_ref() {
-                    match chunk {
-                        [a, b, c, d] => {
-                            let r1 = try_parse_byte!(a, $const_table, idx + 0);
-                            let r2 = try_parse_byte!(b, $const_table, idx + 1);
-                            let r3 = try_parse_byte!(c, $const_table, idx + 2);
-                            let r4 = try_parse_byte!(d, $const_table, idx + 3);
-        
-                            idx += 4;
+                
+                let idx = $const_table.len().wrapping_sub(bytes.len());
+
+                let mut table_chunks = $const_table[idx..].exact_chunks(4);
+                
+                for (chunk, table_chunk) in chunks.by_ref().zip(table_chunks.by_ref()) {
+                    match (chunk, table_chunk) {
+                        ([a, b, c, d], [p1, p2, p3, p4]) => {
+                            let r1 = parse_byte(a, *p1)?;
+                            let r2 = parse_byte(b, *p2)?;
+                            let r3 = parse_byte(c, *p3)?;
+                            let r4 = parse_byte(d, *p4)?;
+                            
                             result = result.wrapping_add(r1 + r2 + r3 + r4);
                         }
                         _ => unreachable!(),
                     }
                 }
-        
-                for (offset, byte) in chunks.remainder().iter().enumerate() {
-                    let r = try_parse_byte!(byte, $const_table, idx + offset);
+
+                for (byte, pow10) in chunks.remainder().iter().zip(table_chunks.remainder()) {
+                    let r = parse_byte(byte, *pow10)?;
                     result = result.wrapping_add(r);
                 }
         
@@ -138,14 +148,20 @@ macro_rules! impl_unsigned_conversions {
         }
     };
 
-    (u8) => {
+    // @NOTE: Specialize implementation for u8
+    (@u8, $const_table:ident) => {
         impl FromAscii for u8 {
-            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
+                if bytes.len() > $const_table.len() {
+                    return Err(ParseIntErr::Overflow)
+                }
+
                 let mut result: Self = 0;
-                let idx = POW10_U8.len() - bytes.len();
+                let idx = $const_table.len() - bytes.len();
+                let table_iter = $const_table[idx..].iter();
         
-                for (offset, byte) in bytes.iter().enumerate() {
-                    let r = try_parse_byte!(byte, POW10_U8, idx + offset);
+                for (byte, pow10) in bytes.iter().zip(table_iter) {
+                    let r = parse_byte(byte, *pow10)?;
                     result = result.wrapping_add(r);
                 }
         
@@ -158,11 +174,9 @@ macro_rules! impl_unsigned_conversions {
 macro_rules! impl_signed_conversions {
     ($int:ty, $unsigned_version:ty) => {
         impl FromAscii for $int {
-            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.starts_with(b"-") {
-                    unsafe {
-                        Ok(-(<$unsigned_version>::bytes_to_int(bytes.get_unchecked(1..))? as Self))
-                    }
+                    Ok(-(<$unsigned_version>::bytes_to_int(&bytes[1..])? as Self))
                 } else {
                     Ok(<$unsigned_version>::bytes_to_int(bytes)? as Self)
                 }
@@ -171,7 +185,7 @@ macro_rules! impl_signed_conversions {
     };
 }
 
-impl_unsigned_conversions!(u8);
+impl_unsigned_conversions!(@u8, POW10_U8);
 impl_unsigned_conversions!(u16, POW10_U16);
 impl_unsigned_conversions!(u32, POW10_U32);
 impl_unsigned_conversions!(u64, POW10_U64);
@@ -185,7 +199,7 @@ impl_signed_conversions!(isize, usize);
 #[cfg(target_pointer_width = "32")]
 impl FromAscii for usize {
     #[inline]
-    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
         Ok(u32::bytes_to_int(bytes)? as Self)
     }
 }
@@ -193,7 +207,7 @@ impl FromAscii for usize {
 #[cfg(target_pointer_width = "64")]
 impl FromAscii for usize {
     #[inline]
-    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ()> {
+    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
         Ok(u64::bytes_to_int(bytes)? as Self)
     }
 }
