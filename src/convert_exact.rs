@@ -90,12 +90,14 @@ pub enum ParseIntErr {
 #[inline(always)]
 fn parse_byte<N>(byte: &u8, pow10: N) -> Result<N, ParseIntErr>
 where
-    N: From<u8> + Mul<Output = N>
+    N: From<u8> + Mul<Output = N>,
 {
     let d = byte.wrapping_sub(ASCII_TO_INT_FACTOR);
 
     if d > 9 {
-        return Err(ParseIntErr::InvalidDigit(d.wrapping_add(ASCII_TO_INT_FACTOR) as char));
+        return Err(ParseIntErr::InvalidDigit(
+            d.wrapping_add(ASCII_TO_INT_FACTOR) as char,
+        ));
     }
 
     Ok(N::from(d) * pow10)
@@ -105,25 +107,25 @@ macro_rules! impl_unsigned_conversions {
     ($int:ty, $const_table:ident) => {
         impl FromAscii for $int {
             /*
-                1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
-                2) For each byte:
-                    - substract 48, wrapping
-                    - validate it's less than 9
-                    - multiply with some power of 10
-            */
+                        1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
+                        2) For each byte:
+                            - substract 48, wrapping
+                            - validate it's less than 9
+                            - multiply with some power of 10
+                    */
             #[inline(always)]
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.len() > $const_table.len() {
-                    return Err(ParseIntErr::Overflow)
+                    return Err(ParseIntErr::Overflow);
                 }
-
+        
                 let mut result: Self = 0;
                 let mut chunks = bytes.exact_chunks(4);
-                
+        
                 let idx = $const_table.len().wrapping_sub(bytes.len());
-
+        
                 let mut table_chunks = $const_table[idx..].exact_chunks(4);
-                
+        
                 for (chunk, table_chunk) in chunks.by_ref().zip(table_chunks.by_ref()) {
                     match (chunk, table_chunk) {
                         ([a, b, c, d], [p1, p2, p3, p4]) => {
@@ -131,13 +133,13 @@ macro_rules! impl_unsigned_conversions {
                             let r2 = parse_byte(b, *p2)?;
                             let r3 = parse_byte(c, *p3)?;
                             let r4 = parse_byte(d, *p4)?;
-                            
+        
                             result = result.wrapping_add(r1 + r2 + r3 + r4);
                         }
                         _ => unreachable!(),
                     }
                 }
-
+        
                 for (byte, pow10) in chunks.remainder().iter().zip(table_chunks.remainder()) {
                     let r = parse_byte(byte, *pow10)?;
                     result = result.wrapping_add(r);
@@ -153,9 +155,9 @@ macro_rules! impl_unsigned_conversions {
         impl FromAscii for u8 {
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.len() > $const_table.len() {
-                    return Err(ParseIntErr::Overflow)
+                    return Err(ParseIntErr::Overflow);
                 }
-
+        
                 let mut result: Self = 0;
                 let idx = $const_table.len() - bytes.len();
                 let table_iter = $const_table[idx..].iter();
