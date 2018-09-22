@@ -6,7 +6,10 @@
 pub mod convert;
 
 #[cfg(feature = "with_exact")]
-pub mod convert_exact;
+pub mod from_ascii;
+
+#[cfg(feature = "with_exact")]
+pub mod into_ascii;
 
 #[cfg(feature = "nightly")]
 extern crate test;

@@ -1,4 +1,7 @@
+use std::error::Error;
+use std::fmt;
 use std::ops::Mul;
+use std::str;
 
 const ASCII_TO_INT_FACTOR: u8 = 48;
 
@@ -42,6 +45,39 @@ const POW10_U64: [u64; 20] = [
     1,
 ];
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ParseIntErr {
+    /// Represents a character that could not be converted to a number.
+    InvalidDigit([u8; 1]),
+
+    /// Represents that parsing of the slice could not be started, the slice was too large.
+    Overflow,
+}
+
+impl fmt::Display for ParseIntErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &ParseIntErr::InvalidDigit([ref c]) => write!(f, "ParseIntErr::InvalidDigit({})", c),
+            &ParseIntErr::Overflow => f.pad("ParseIntErr::Overflow"),
+        }
+    }
+}
+
+impl Error for ParseIntErr {
+    fn description(&self) -> &str {
+        match self {
+            &ParseIntErr::InvalidDigit(ref c) => str::from_utf8(c).unwrap(),
+            &ParseIntErr::Overflow => "number too large to fit in the target type",
+        }
+    }
+}
+
+impl ParseIntErr {
+    pub fn with_byte(c: u8) -> Self {
+        ParseIntErr::InvalidDigit([c])
+    }
+}
+
 pub trait FromAscii: Sized {
     /// The function performing the conversion from a byteslice to a number.
     /// It takes anything that can be transformed into a byte-slice.
@@ -50,11 +86,11 @@ pub trait FromAscii: Sized {
     /// # Examples
     /// ```
     /// extern crate byte_num;
-    /// use byte_num::convert_exact::{ParseIntErr, FromAscii};
+    /// use byte_num::from_ascii::{ParseIntErr, FromAscii};
     ///
     /// fn main() {
     ///     assert_eq!(u32::atoi("1928"), Ok(1928));
-    ///     assert_eq!(u32::atoi("12e3"), Err(ParseIntErr::InvalidDigit('e')));
+    ///     assert_eq!(u32::atoi("12e3"), Err(ParseIntErr::with_byte(b'e')));
     /// }
     /// ```
     /// # Safety
@@ -63,7 +99,7 @@ pub trait FromAscii: Sized {
     /// For example:
     /// ```
     /// extern crate byte_num;
-    /// use byte_num::convert_exact::FromAscii;
+    /// use byte_num::from_ascii::FromAscii;
     ///
     /// fn main () {
     ///     let n = u8::atoi("257");
@@ -78,15 +114,6 @@ pub trait FromAscii: Sized {
     fn bytes_to_int(s: &[u8]) -> Result<Self, ParseIntErr>;
 }
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ParseIntErr {
-    /// Represents a character that could not be converted to a number.
-    InvalidDigit(char),
-
-    /// Represents that parsing of the slice could not be started, the slice was too large.
-    Overflow,
-}
-
 #[inline(always)]
 fn parse_byte<N>(byte: &u8, pow10: N) -> Result<N, ParseIntErr>
 where
@@ -95,9 +122,7 @@ where
     let d = byte.wrapping_sub(ASCII_TO_INT_FACTOR);
 
     if d > 9 {
-        return Err(ParseIntErr::InvalidDigit(
-            d.wrapping_add(ASCII_TO_INT_FACTOR) as char,
-        ));
+        return Err(ParseIntErr::with_byte(d.wrapping_add(ASCII_TO_INT_FACTOR)));
     }
 
     Ok(N::from(d) * pow10)
@@ -118,10 +143,9 @@ macro_rules! impl_unsigned_conversions {
                 }
         
                 let mut result: Self = 0;
-                let mut chunks = bytes.exact_chunks(4);
-        
                 let idx = $const_table.len().wrapping_sub(bytes.len());
         
+                let mut chunks = bytes.exact_chunks(4);
                 let mut table_chunks = $const_table[idx..].exact_chunks(4);
         
                 for (chunk, table_chunk) in chunks.by_ref().zip(table_chunks.by_ref()) {
@@ -148,7 +172,7 @@ macro_rules! impl_unsigned_conversions {
         }
     };
 
-    // @NOTE: Specialize implementation for u8
+    // @NOTE: Specialize implementation for u8, since that's finished within 3 Iterations at.
     (@u8, $const_table:ident) => {
         impl FromAscii for u8 {
             #[inline]
@@ -210,5 +234,25 @@ impl FromAscii for usize {
     #[inline]
     fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
         Ok(u64::bytes_to_int(bytes)? as Self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FromAscii, ParseIntErr};
+
+    #[test]
+    fn to_u8() {
+        assert_eq!(u8::atoi("123"), Ok(123));
+        assert_eq!(u8::atoi("256"), Ok(256));
+
+        // Wraps around
+        assert_eq!(u8::atoi("257"), Ok(1));
+
+        // Error: InvalidDigit
+        assert_eq!(u8::atoi("!23"), Err(ParseIntErr::with_byte(b'!')));
+
+        // Error: Overflow
+        assert_eq!(u8::atoi("1000"), Err(ParseIntErr::Overflow));
     }
 }
