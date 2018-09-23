@@ -78,6 +78,7 @@ impl ParseIntErr {
     }
 }
 
+/// A trait that converts any sequence of bytes into a number.
 pub trait FromAscii: Sized {
     /// The function performing the conversion from a byteslice to a number.
     /// It takes anything that can be transformed into a byte-slice.
@@ -102,8 +103,8 @@ pub trait FromAscii: Sized {
     /// use byte_num::from_ascii::FromAscii;
     ///
     /// fn main () {
-    ///     let n = u8::atoi("257");
-    ///     assert_eq!(n, Ok(1));
+    ///     let n = u8::atoi("256");
+    ///     assert_eq!(n, Ok(0));
     /// }
     /// ```
     #[inline]
@@ -128,7 +129,7 @@ where
     Ok(N::from(d) * pow10)
 }
 
-macro_rules! impl_unsigned_conversions {
+macro_rules! unsigned_from_ascii {
     ($int:ty, $const_table:ident) => {
         impl FromAscii for $int {
             // 1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
@@ -196,7 +197,7 @@ macro_rules! impl_unsigned_conversions {
     };
 }
 
-macro_rules! impl_signed_conversions {
+macro_rules! signed_from_ascii {
     ($int:ty, $unsigned_version:ty) => {
         impl FromAscii for $int {
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
@@ -210,16 +211,16 @@ macro_rules! impl_signed_conversions {
     };
 }
 
-impl_unsigned_conversions!(@u8, POW10_U8);
-impl_unsigned_conversions!(u16, POW10_U16);
-impl_unsigned_conversions!(u32, POW10_U32);
-impl_unsigned_conversions!(u64, POW10_U64);
+unsigned_from_ascii!(@u8, POW10_U8);
+unsigned_from_ascii!(u16, POW10_U16);
+unsigned_from_ascii!(u32, POW10_U32);
+unsigned_from_ascii!(u64, POW10_U64);
 
-impl_signed_conversions!(i8, u8);
-impl_signed_conversions!(i16, u16);
-impl_signed_conversions!(i32, u32);
-impl_signed_conversions!(i64, u64);
-impl_signed_conversions!(isize, usize);
+signed_from_ascii!(i8, u8);
+signed_from_ascii!(i16, u16);
+signed_from_ascii!(i32, u32);
+signed_from_ascii!(i64, u64);
+signed_from_ascii!(isize, usize);
 
 #[cfg(target_pointer_width = "32")]
 impl FromAscii for usize {
@@ -244,7 +245,7 @@ mod tests {
     #[test]
     fn to_u8() {
         assert_eq!(u8::atoi("123"), Ok(123));
-        assert_eq!(u8::atoi("256"), Ok(256));
+        assert_eq!(u8::atoi("256"), Ok(0));
 
         // Wraps around
         assert_eq!(u8::atoi("257"), Ok(1));

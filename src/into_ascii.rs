@@ -1,6 +1,11 @@
 const ASCII_TO_INT_FACTOR: u8 = 48;
 
+/// A trait that converts integers to a representation in bytes.
+/// That is, `99usize` in bytes is `[b'9', b'9']`.
+/// Negative values will also include a '-' in their byte representation.
 pub trait IntoAscii {
+
+    /// Converts `self` into it's representation in bytes.
     #[inline]
     fn itoa(&self) -> Vec<u8>
     where
@@ -16,10 +21,12 @@ pub trait IntoAscii {
     /// Returns the size of an integer. This is how many digits the integer has.
     fn digits10(self) -> usize;
 
+    /// Writes `self` into `buff`.
+    /// This function assumes `buff` has enough space to hold all digits of `self`. For the number of digits `self`has, see [`IntoAscii::digits10`].
     fn int_to_bytes(self, buff: &mut [u8]);
 }
 
-macro_rules! impl_unsigned_conversions {
+macro_rules! unsigned_into_ascii {
     ($int:ty) => {
         impl IntoAscii for $int {
             #[inline]
@@ -41,7 +48,8 @@ macro_rules! impl_unsigned_conversions {
                     result += 4;
                 }
             }
-        
+
+            #[inline]
             fn int_to_bytes(mut self, buff: &mut [u8]) {
                 // [1, 2, 3, 4, 5].exact_chunks(2).rev() gives [3, 4] and [2, 1],
                 // while we wanted [4, 5] and [2, 3].
@@ -102,26 +110,119 @@ macro_rules! impl_unsigned_conversions {
                     3
                 }
             }
+
+            #[inline]
+            fn int_to_bytes(mut self, buff: &mut [u8]) {
         
-            fn int_to_bytes(self, buff: &mut [u8]) {
-                unimplemented!()
+                for byte in buff.iter_mut().rev() {
+                    let q = self / 10;
+                    let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    *byte = r;
+
+                    if self == 0 {
+                        break;
+                    }
+
+                    self = q;
+                }
             }
         }
     };
 }
 
-impl_unsigned_conversions!(@u8);
-impl_unsigned_conversions!(u16);
-impl_unsigned_conversions!(u32);
-impl_unsigned_conversions!(u64);
-impl_unsigned_conversions!(usize);
+macro_rules! signed_into_ascii {
+    ($int:ty, $unsigned_version:ty) => {
+        impl IntoAscii for $int {
+            #[inline]
+            fn itoa(&self) -> Vec<u8>
+            where
+                Self: Copy,
+            {
+                
+                let(n, size) = if self.is_negative() {
+                    (self * -1, self.digits10() + 1)
+                }
+                else {
+                    (*self, self.digits10())
+                };
+
+                let mut buff = vec![b'-'; size];
+                (n as $unsigned_version).int_to_bytes(&mut buff);
+                buff
+            }
+
+            #[inline]
+            fn digits10(self) -> usize {
+                (self.abs() as $unsigned_version).digits10()
+            }
+
+            #[inline]
+            fn int_to_bytes(self, buff: &mut [u8]) {
+                if self.is_negative() {
+                    (self.abs() as $unsigned_version).int_to_bytes(buff);
+                    buff[0] = b'-';
+                }
+                else {
+                    (self as $unsigned_version).int_to_bytes(buff);
+                }
+            }
+        }
+    };
+}
+
+unsigned_into_ascii!(@u8);
+unsigned_into_ascii!(u16);
+unsigned_into_ascii!(u32);
+unsigned_into_ascii!(u64);
+unsigned_into_ascii!(usize);
+
+signed_into_ascii!(i8, u8);
+signed_into_ascii!(i16, u16);
+signed_into_ascii!(i32, u32);
+signed_into_ascii!(i64, u64);
+signed_into_ascii!(isize, usize);
 
 #[cfg(test)]
 mod tests {
     use super::IntoAscii;
 
     #[test]
-    fn int_to_bytes_usize() {
-        assert_eq!(99_999_9999usize.itoa(), vec![b'9'; 9]);
+    fn itoa_usize() {
+        assert_eq!(123_456_789usize.itoa(), vec![b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']);
+    }
+
+    #[test]
+    fn itoa_isize() {
+        assert_eq!((-123_456_789isize).itoa(), vec![b'-', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']);
+    }
+
+    #[test]
+    fn itoa_0usize() {
+        assert_eq!(0usize.itoa(), vec![b'0']);
+    }
+
+    #[test]
+    fn itoa_0isize() {
+        assert_eq!((-0isize).itoa(), vec![b'0']);
+    }
+
+    #[test]
+    fn digits10_usize() {
+        assert_eq!(123456789usize.digits10(), 9);
+    }
+
+    #[test]
+    fn digits10_isize() {
+        assert_eq!((-123456789isize).digits10(), 9);
+    }
+
+    #[test]
+    fn digits10__0usize() {
+        assert_eq!(0usize.digits10(), 1);
+    }
+
+    #[test]
+    fn digits10_0isize() {
+        assert_eq!((-0isize).digits10(), 1);
     }
 }
