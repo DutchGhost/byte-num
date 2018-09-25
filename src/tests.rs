@@ -102,7 +102,7 @@ pub mod bench_from_ascii {
     #[cfg(feature = "with_exact")]
     #[bench]
     fn bench_u64_from_ascii_exact(b: &mut Bencher) {
-        use convert_exact::FromAscii as EXACT;
+        use from_ascii as EXACT;
         b.iter(|| {
             assert_eq!(
                 STRING_U64
@@ -110,7 +110,7 @@ pub mod bench_from_ascii {
                     .cloned()
                     .cycle()
                     .take(10_000)
-                    .map(<u64 as EXACT>::atoi)
+                    .map(<u64 as EXACT::FromAscii>::atoi)
                     .all(|n| n.is_ok()),
                 true
             );
@@ -190,11 +190,14 @@ pub mod bench_into_ascii {
         234, 4356, 234, 356, 567, 345, 2345, 456, 5467, 234, 234, 5436, 567, 345, 456, 5467, 234,
         234, 456, 234, 23, 45, 456, 34, 45,
     ];
+
+    #[cfg(feature = "nightly")]
     const INT_U64: [u64; 25] = [
         982374, 987234, 98456, 136, 2354, 3, 8743, 9645, 2173, 0986, 237493984, 79613, 34, 98274,
         965, 2, 5, 2, 8, 98274, 987768234, 9875, 987, 9878376, 1678,
     ];
 
+    #[cfg(feature = "nightly")]
     const INT_U32: [u32; 100] = [
         1128170912, 1426521144, 2584211806, 3033901428, 3679896292, 30393242, 2194237445,
         3496945018, 1518198753, 2998518165, 3483791564, 285949496, 652585618, 378575128,
@@ -287,6 +290,18 @@ pub mod bench_into_ascii {
             b.iter(|| {
                 for item in INT_U32.iter() {
                     format!("{}", item).into_bytes();
+                }
+            })
+        }
+
+        #[cfg(feature = "with_exact")]
+        #[bench]
+        fn bench_100_u32_into_ascii_with_exact(b: &mut Bencher) {
+            use into_ascii as ITOA;
+
+            b.iter(|| {
+                for item in INT_U32.iter() {
+                    <u32 as ITOA::IntoAscii>::itoa(item);
                 }
             })
         }
