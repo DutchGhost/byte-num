@@ -4,7 +4,6 @@ const ASCII_TO_INT_FACTOR: u8 = 48;
 /// That is, `99usize` in bytes is `[b'9', b'9']`.
 /// Negative values will also include a '-' in their byte representation.
 pub trait IntoAscii {
-
     /// Converts `self` into it's representation in bytes.
     #[inline]
     fn itoa(&self) -> Vec<u8>
@@ -48,12 +47,9 @@ macro_rules! unsigned_into_ascii {
                     result += 4;
                 }
             }
-
+        
             #[inline]
             fn int_to_bytes(mut self, buff: &mut [u8]) {
-                // [1, 2, 3, 4, 5].exact_chunks(2).rev() gives [3, 4] and [2, 1],
-                // while we wanted [4, 5] and [2, 3].
-                // So we make the remainder ourselves.
                 let mut chunked = buff.rchunks_exact_mut(4);
                 for mut chunk in chunked.by_ref() {
                     let q = self / 10;
@@ -79,7 +75,7 @@ macro_rules! unsigned_into_ascii {
                     self /= 10_000;
                 }
         
-                for byte in chunked.into_remainder().iter_mut() {
+                for byte in chunked.into_remainder().iter_mut().rev() {
                     let q = self / 10;
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
@@ -107,19 +103,18 @@ macro_rules! unsigned_into_ascii {
                     3
                 }
             }
-
+        
             #[inline]
             fn int_to_bytes(mut self, buff: &mut [u8]) {
-        
                 for byte in buff.iter_mut().rev() {
                     let q = self / 10;
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
-
+        
                     if self == 0 {
                         break;
                     }
-
+        
                     self = q;
                 }
             }
@@ -135,31 +130,28 @@ macro_rules! signed_into_ascii {
             where
                 Self: Copy,
             {
-                
-                let(n, size) = if self.is_negative() {
+                let (n, size) = if self.is_negative() {
                     (self * -1, self.digits10() + 1)
-                }
-                else {
+                } else {
                     (*self, self.digits10())
                 };
-
+        
                 let mut buff = vec![b'-'; size];
                 (n as $unsigned_version).int_to_bytes(&mut buff);
                 buff
             }
-
+        
             #[inline]
             fn digits10(self) -> usize {
                 (self.abs() as $unsigned_version).digits10()
             }
-
+        
             #[inline]
             fn int_to_bytes(self, buff: &mut [u8]) {
                 if self.is_negative() {
                     (self.abs() as $unsigned_version).int_to_bytes(buff);
                     buff[0] = b'-';
-                }
-                else {
+                } else {
                     (self as $unsigned_version).int_to_bytes(buff);
                 }
             }
@@ -179,25 +171,9 @@ signed_into_ascii!(i32, u32);
 signed_into_ascii!(i64, u64);
 signed_into_ascii!(isize, usize);
 
-impl <'a, N: Copy> IntoAscii for &'a N
+impl<'a, N: Copy> IntoAscii for &'a N
 where
-    N: IntoAscii
-{
-    #[inline]
-    fn digits10(self) -> usize {
-        (*self).digits10()
-    }
-
-    #[inline]
-    fn int_to_bytes(self, buff: &mut [u8]) {
-        (*self).int_to_bytes(buff);
-    }
-
-}
-
-impl <'a, N: Copy> IntoAscii for &'a mut N
-where
-    N: IntoAscii
+    N: IntoAscii,
 {
     #[inline]
     fn digits10(self) -> usize {
@@ -210,9 +186,24 @@ where
     }
 }
 
-impl <N: Copy> IntoAscii for Box<N>
+impl<'a, N: Copy> IntoAscii for &'a mut N
 where
-    N: IntoAscii
+    N: IntoAscii,
+{
+    #[inline]
+    fn digits10(self) -> usize {
+        (*self).digits10()
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        (*self).int_to_bytes(buff);
+    }
+}
+
+impl<N: Copy> IntoAscii for Box<N>
+where
+    N: IntoAscii,
 {
     #[inline]
     fn digits10(self) -> usize {
@@ -231,12 +222,18 @@ mod tests {
 
     #[test]
     fn itoa_usize() {
-        assert_eq!(123_456_789usize.itoa(), vec![b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']);
+        assert_eq!(
+            123_456_789usize.itoa(),
+            vec![b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']
+        );
     }
 
     #[test]
     fn itoa_isize() {
-        assert_eq!((-123_456_789isize).itoa(), vec![b'-', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']);
+        assert_eq!(
+            (-123_456_789isize).itoa(),
+            vec![b'-', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']
+        );
     }
 
     #[test]

@@ -108,7 +108,7 @@ pub trait FromAscii: Sized {
     /// }
     /// ```
     #[inline]
-    fn atoi<S: AsRef<[u8]>>(s: S) -> Result<Self, ParseIntErr> {
+    fn atoi(s: impl AsRef<[u8]>) -> Result<Self, ParseIntErr> {
         Self::bytes_to_int(s.as_ref())
     }
 
@@ -123,7 +123,7 @@ where
     let d = byte.wrapping_sub(ASCII_TO_INT_FACTOR);
 
     if d > 9 {
-        return Err(ParseIntErr::with_byte(d.wrapping_add(ASCII_TO_INT_FACTOR)));
+        return Err(ParseIntErr::with_byte(*byte));
     }
 
     Ok(N::from(d) * pow10)

@@ -293,7 +293,6 @@ pub mod bench_into_ascii {
             })
         }
 
-        #[cfg(feature = "with_exact")]
         #[bench]
         fn bench_100_u32_into_ascii_with_exact(b: &mut Bencher) {
             use into_ascii as ITOA;
