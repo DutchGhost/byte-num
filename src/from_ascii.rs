@@ -146,8 +146,8 @@ macro_rules! unsigned_from_ascii {
                 let mut result: Self = 0;
                 let idx = $const_table.len().wrapping_sub(bytes.len());
         
-                let mut chunks = bytes.exact_chunks(4);
-                let mut table_chunks = $const_table[idx..].exact_chunks(4);
+                let mut chunks = bytes.chunks_exact(4);
+                let mut table_chunks = $const_table[idx..].chunks_exact(4);
         
                 for (chunk, table_chunk) in chunks.by_ref().zip(table_chunks.by_ref()) {
                     match (chunk, table_chunk) {
@@ -173,7 +173,7 @@ macro_rules! unsigned_from_ascii {
         }
     };
 
-    // @NOTE: Specialize implementation for u8, since that's finished within 3 Iterations at.
+    // @NOTE: Specialize implementation for u8, since that's finished within 3 Iterations at max.
     (@u8, $const_table:ident) => {
         impl FromAscii for u8 {
             #[inline]

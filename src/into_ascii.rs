@@ -54,11 +54,8 @@ macro_rules! unsigned_into_ascii {
                 // [1, 2, 3, 4, 5].exact_chunks(2).rev() gives [3, 4] and [2, 1],
                 // while we wanted [4, 5] and [2, 3].
                 // So we make the remainder ourselves.
-                let rem = buff.len() % 4;
-                let splitof = buff.len() - (buff.len() - rem);
-                let (remainder, v) = buff.split_at_mut(splitof);
-        
-                for mut chunk in v.exact_chunks_mut(4).rev() {
+                let mut chunked = buff.rchunks_exact_mut(4);
+                for mut chunk in chunked.by_ref() {
                     let q = self / 10;
                     let q1 = self / 100;
                     let q2 = self / 1000;
@@ -82,7 +79,7 @@ macro_rules! unsigned_into_ascii {
                     self /= 10_000;
                 }
         
-                for byte in remainder.iter_mut().rev() {
+                for byte in chunked.into_remainder().iter_mut() {
                     let q = self / 10;
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
                     *byte = r;
@@ -181,6 +178,52 @@ signed_into_ascii!(i16, u16);
 signed_into_ascii!(i32, u32);
 signed_into_ascii!(i64, u64);
 signed_into_ascii!(isize, usize);
+
+impl <'a, N: Copy> IntoAscii for &'a N
+where
+    N: IntoAscii
+{
+    #[inline]
+    fn digits10(self) -> usize {
+        (*self).digits10()
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        (*self).int_to_bytes(buff);
+    }
+
+}
+
+impl <'a, N: Copy> IntoAscii for &'a mut N
+where
+    N: IntoAscii
+{
+    #[inline]
+    fn digits10(self) -> usize {
+        (*self).digits10()
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        (*self).int_to_bytes(buff);
+    }
+}
+
+impl <N: Copy> IntoAscii for Box<N>
+where
+    N: IntoAscii
+{
+    #[inline]
+    fn digits10(self) -> usize {
+        (*self).digits10()
+    }
+
+    #[inline]
+    fn int_to_bytes(self, buff: &mut [u8]) {
+        (*self).int_to_bytes(buff);
+    }
+}
 
 #[cfg(test)]
 mod tests {

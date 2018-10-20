@@ -99,7 +99,6 @@ pub mod bench_from_ascii {
         })
     }
 
-    #[cfg(feature = "with_exact")]
     #[bench]
     fn bench_u64_from_ascii_exact(b: &mut Bencher) {
         use from_ascii as EXACT;
