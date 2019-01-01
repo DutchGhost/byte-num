@@ -4,8 +4,9 @@
 //! The functions are based on the fastware talks of Andrei Alexandrescu. (https://www.youtube.com/watch?v=o4-CwDo2zpg)
 pub mod convert;
 
+mod constants;
+pub mod error;
 pub mod from_ascii;
-
 pub mod into_ascii;
 
 #[cfg(feature = "nightly")]

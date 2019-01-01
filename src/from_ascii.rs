@@ -1,82 +1,9 @@
-use std::error::Error;
-use std::fmt;
 use std::ops::Mul;
-use std::str;
 
-const ASCII_TO_INT_FACTOR: u8 = 48;
-
-const POW10_U8: [u8; 3] = [100, 10, 1];
-
-const POW10_U16: [u16; 5] = [10_000, 1_000, 100, 10, 1];
-
-const POW10_U32: [u32; 10] = [
-    1_000_000_000,
-    100_000_000,
-    10_000_000,
-    1_000_000,
-    100_000,
-    10_000,
-    1_000,
-    100,
-    10,
-    1,
-];
-
-const POW10_U64: [u64; 20] = [
-    10_000_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    100_000_000_000_000_000,
-    10_000_000_000_000_000,
-    1_000_000_000_000_000,
-    100_000_000_000_000,
-    10_000_000_000_000,
-    1_000_000_000_000,
-    100_000_000_000,
-    10_000_000_000,
-    1_000_000_000,
-    100_000_000,
-    10_000_000,
-    1_000_000,
-    100_000,
-    10_000,
-    1_000,
-    100,
-    10,
-    1,
-];
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ParseIntErr {
-    /// Represents a character that could not be converted to a number.
-    InvalidDigit([u8; 1]),
-
-    /// Represents that parsing of the slice could not be started, the slice was too large.
-    Overflow,
-}
-
-impl fmt::Display for ParseIntErr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ParseIntErr::InvalidDigit([ref c]) => write!(f, "ParseIntErr::InvalidDigit({})", c),
-            ParseIntErr::Overflow => f.pad("ParseIntErr::Overflow"),
-        }
-    }
-}
-
-impl Error for ParseIntErr {
-    fn description(&self) -> &str {
-        match *self {
-            ParseIntErr::InvalidDigit(ref c) => str::from_utf8(c).unwrap(),
-            ParseIntErr::Overflow => "number too large to fit in the target type",
-        }
-    }
-}
-
-impl ParseIntErr {
-    pub fn with_byte(c: u8) -> Self {
-        ParseIntErr::InvalidDigit([c])
-    }
-}
+use crate::{
+    constants::*,
+    error::ParseIntErr
+};
 
 /// A trait that converts any sequence of bytes into a number.
 pub trait FromAscii: Sized {
@@ -87,7 +14,10 @@ pub trait FromAscii: Sized {
     /// # Examples
     /// ```
     /// extern crate byte_num;
-    /// use byte_num::from_ascii::{ParseIntErr, FromAscii};
+    /// use byte_num::{
+    ///     from_ascii::FromAscii,
+    ///     error::ParseIntErr,
+    /// };
     ///
     /// fn main() {
     ///     assert_eq!(u32::atoi("1928"), Ok(1928));
@@ -227,28 +157,13 @@ unsigned_from_ascii!(@u8, POW10_U8);
 unsigned_from_ascii!(u16, POW10_U16);
 unsigned_from_ascii!(u32, POW10_U32);
 unsigned_from_ascii!(u64, POW10_U64);
+unsigned_from_ascii!(usize, POW10_USIZE);
 
 signed_from_ascii!(i8, u8);
 signed_from_ascii!(i16, u16);
 signed_from_ascii!(i32, u32);
 signed_from_ascii!(i64, u64);
 signed_from_ascii!(isize, usize);
-
-#[cfg(target_pointer_width = "32")]
-impl FromAscii for usize {
-    #[inline]
-    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
-        Ok(u32::bytes_to_int(bytes)? as Self)
-    }
-}
-
-#[cfg(target_pointer_width = "64")]
-impl FromAscii for usize {
-    #[inline]
-    fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
-        Ok(u64::bytes_to_int(bytes)? as Self)
-    }
-}
 
 #[cfg(test)]
 mod tests {
