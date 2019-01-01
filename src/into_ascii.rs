@@ -29,19 +29,15 @@ macro_rules! unsigned_into_ascii {
     ($int:ty) => {
         impl IntoAscii for $int {
             #[inline]
+            #[clippy::skip]
             fn digits10(mut self) -> usize {
                 let mut result = 1;
         
                 loop {
-                    if self < 10 {
-                        break result;
-                    } else if self < 100 {
-                        break result + 1;
-                    } else if self < 1000 {
-                        break result + 2;
-                    } else if self < 10000 {
-                        break result + 3;
-                    }
+                    if self < 10 { break result;}
+                    if self < 100 { break result + 1; }
+                    if self < 1000 { break result + 2; }
+                    if self < 10000 { break result + 3; }
         
                     self /= 10_000;
                     result += 4;
@@ -63,7 +59,7 @@ macro_rules! unsigned_into_ascii {
         
                     // @NOTE: Make me nicer when NLL hits stable
                     match &mut chunk {
-                        &mut [ref mut b3, ref mut b2, ref mut b1, ref mut b] => {
+                        [b3, b2, b1, b] => {
                             *b = r;
                             *b1 = r1;
                             *b2 = r2;
@@ -257,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn digits10__0usize() {
+    fn digits10_0usize() {
         assert_eq!(0usize.digits10(), 1);
     }
 

@@ -56,18 +56,18 @@ pub enum ParseIntErr {
 
 impl fmt::Display for ParseIntErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &ParseIntErr::InvalidDigit([ref c]) => write!(f, "ParseIntErr::InvalidDigit({})", c),
-            &ParseIntErr::Overflow => f.pad("ParseIntErr::Overflow"),
+        match *self {
+            ParseIntErr::InvalidDigit([ref c]) => write!(f, "ParseIntErr::InvalidDigit({})", c),
+            ParseIntErr::Overflow => f.pad("ParseIntErr::Overflow"),
         }
     }
 }
 
 impl Error for ParseIntErr {
     fn description(&self) -> &str {
-        match self {
-            &ParseIntErr::InvalidDigit(ref c) => str::from_utf8(c).unwrap(),
-            &ParseIntErr::Overflow => "number too large to fit in the target type",
+        match *self {
+            ParseIntErr::InvalidDigit(ref c) => str::from_utf8(c).unwrap(),
+            ParseIntErr::Overflow => "number too large to fit in the target type",
         }
     }
 }
@@ -116,14 +116,14 @@ pub trait FromAscii: Sized {
 }
 
 #[inline(always)]
-fn parse_byte<N>(byte: &u8, pow10: N) -> Result<N, ParseIntErr>
+fn parse_byte<N>(byte: u8, pow10: N) -> Result<N, ParseIntErr>
 where
     N: From<u8> + Mul<Output = N>,
 {
     let d = byte.wrapping_sub(ASCII_TO_INT_FACTOR);
 
     if d > 9 {
-        return Err(ParseIntErr::with_byte(*byte));
+        return Err(ParseIntErr::with_byte(byte));
     }
 
     Ok(N::from(d) * pow10)
@@ -138,37 +138,48 @@ macro_rules! unsigned_from_ascii {
             //     - validate it's less than 9
             //     - multiply with some power of 10
             #[inline]
-            fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
+            fn bytes_to_int(mut bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.len() > $const_table.len() {
                     return Err(ParseIntErr::Overflow);
                 }
         
                 let mut result: Self = 0;
-                let idx = $const_table.len().wrapping_sub(bytes.len());
-        
-                let mut chunks = bytes.chunks_exact(4);
-                let mut table_chunks = $const_table[idx..].chunks_exact(4);
-        
-                for (chunk, table_chunk) in chunks.by_ref().zip(table_chunks.by_ref()) {
-                    match (chunk, table_chunk) {
-                        ([a, b, c, d], [p1, p2, p3, p4]) => {
-                            let r1 = parse_byte(a, *p1)?;
-                            let r2 = parse_byte(b, *p2)?;
-                            let r3 = parse_byte(c, *p3)?;
-                            let r4 = parse_byte(d, *p4)?;
-        
-                            result = result.wrapping_add(r1 + r2 + r3 + r4);
+
+                let mut len = bytes.len();
+                let mut idx = $const_table.len().wrapping_sub(len);
+
+                // @NOTE: This is safe, we never overshoot the buffers.
+                // First we checked of the length of `bytes` is NOT longer than the length of the corresponding table of powers of 10,
+                // so there is no bounds check needed to access the table of powers of 10.
+                // Second, we loop while the length of the bytes is larger than or equal to 4, but only accessing the first 4 elements.
+                // No boundschecks is needed for that as well.
+                unsafe {
+                    while len >= 4 {
+                        match (bytes.get_unchecked(..4), $const_table.get_unchecked(idx .. idx + 4)) {
+                            ([a, b, c, d], [p1, p2, p3, p4]) => {
+                                let r1 = parse_byte(*a, *p1)?;
+                                let r2 = parse_byte(*b, *p2)?;
+                                let r3 = parse_byte(*c, *p3)?;
+                                let r4 = parse_byte(*d, *p4)?;
+
+                                result = result.wrapping_add(r1 + r2 + r3 + r4);
+                            }
+                            _ => unreachable!()
                         }
-                        _ => unreachable!(),
+
+                        len -= 4;
+                        idx += 4;
+                        bytes = bytes.get_unchecked(4..);
                     }
+
+                    for offset in 0..len {
+                        let a = bytes.get_unchecked(offset);
+                        let p = $const_table.get_unchecked(idx + offset);
+                        let r = parse_byte(*a, *p)?;
+                        result = result.wrapping_add(r);
+                    }
+                    return Ok(result);
                 }
-        
-                for (byte, pow10) in chunks.remainder().iter().zip(table_chunks.remainder()) {
-                    let r = parse_byte(byte, *pow10)?;
-                    result = result.wrapping_add(r);
-                }
-        
-                Ok(result)
             }
         }
     };
@@ -187,7 +198,7 @@ macro_rules! unsigned_from_ascii {
                 let table_iter = $const_table[idx..].iter();
         
                 for (byte, pow10) in bytes.iter().zip(table_iter) {
-                    let r = parse_byte(byte, *pow10)?;
+                    let r = parse_byte(*byte, *pow10)?;
                     result = result.wrapping_add(r);
                 }
         
@@ -202,7 +213,8 @@ macro_rules! signed_from_ascii {
         impl FromAscii for $int {
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.starts_with(b"-") {
-                    Ok(-(<$unsigned_version>::bytes_to_int(&bytes[1..])? as Self))
+                    // .wrapping_neg() wraps around.
+                    Ok((<$unsigned_version>::bytes_to_int(&bytes[1..])? as Self).wrapping_neg())
                 } else {
                     Ok(<$unsigned_version>::bytes_to_int(bytes)? as Self)
                 }
@@ -255,5 +267,14 @@ mod tests {
 
         // Error: Overflow
         assert_eq!(u8::atoi("1000"), Err(ParseIntErr::Overflow));
+    }
+
+    #[test]
+    fn overflow_isize() {
+        // overflows minimum value of the isize by 1, but it wraps arroo
+        assert_eq!(isize::atoi("-9223372036854775809"), Ok(9223372036854775807));
+
+        // overflows maximum value of the isize by 1, but it wraps aroo
+        assert_eq!(isize::atoi("9223372036854775809"), Ok(-9223372036854775807));
     }
 }
