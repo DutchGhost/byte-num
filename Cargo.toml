@@ -1,10 +1,11 @@
 [package]
 name = "byte-num"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["DutchGhost <kasper199914@gmail.com>"]
 description = "Crate for converting numbers to bytes, and bytes to numbers in base 10!"
 license = "MIT"
 repository = "https://github.com/DutchGhost/byte-num.git"
+edition = "2018"
 
 [dependencies]
 

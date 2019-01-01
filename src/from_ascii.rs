@@ -1,11 +1,13 @@
 use std::ops::Mul;
 
-use crate::{
-    constants::*,
-    error::ParseIntErr
-};
+use crate::{constants::*, error::ParseIntErr};
 
-/// A trait that converts any sequence of bytes into a number.
+/// This trait converts bytes to integers,
+/// and is implemented on all integer types, except u128 and i128.
+///
+/// The most important method on this trait is [`FromAscii::atoi`], which can be called in a function-like style.
+/// As argument, it takes anything that implements `AsRef<[u8]>`.
+/// The return type is a [`Result`], indicating whether the convertion succeeded or failed
 pub trait FromAscii: Sized {
     /// The function performing the conversion from a byteslice to a number.
     /// It takes anything that can be transformed into a byte-slice.
@@ -13,7 +15,6 @@ pub trait FromAscii: Sized {
     ///
     /// # Examples
     /// ```
-    /// extern crate byte_num;
     /// use byte_num::{
     ///     from_ascii::FromAscii,
     ///     error::ParseIntErr,
@@ -29,7 +30,6 @@ pub trait FromAscii: Sized {
     /// wraps around.
     /// For example:
     /// ```
-    /// extern crate byte_num;
     /// use byte_num::from_ascii::FromAscii;
     ///
     /// fn main () {
@@ -74,10 +74,10 @@ macro_rules! unsigned_from_ascii {
                 }
         
                 let mut result: Self = 0;
-
+        
                 let mut len = bytes.len();
                 let mut idx = $const_table.len().wrapping_sub(len);
-
+        
                 // @NOTE: This is safe, we never overshoot the buffers.
                 // First we checked of the length of `bytes` is NOT longer than the length of the corresponding table of powers of 10,
                 // so there is no bounds check needed to access the table of powers of 10.
@@ -85,31 +85,36 @@ macro_rules! unsigned_from_ascii {
                 // No boundschecks is needed for that as well.
                 unsafe {
                     while len >= 4 {
-                        match (bytes.get_unchecked(..4), $const_table.get_unchecked(idx .. idx + 4)) {
+                        match (
+                            bytes.get_unchecked(..4),
+                            $const_table.get_unchecked(idx..idx + 4),
+                        ) {
                             ([a, b, c, d], [p1, p2, p3, p4]) => {
                                 let r1 = parse_byte(*a, *p1)?;
                                 let r2 = parse_byte(*b, *p2)?;
                                 let r3 = parse_byte(*c, *p3)?;
                                 let r4 = parse_byte(*d, *p4)?;
-
+        
                                 result = result.wrapping_add(r1 + r2 + r3 + r4);
                             }
-                            _ => unreachable!()
+                            _ => unreachable!(),
                         }
-
+        
                         len -= 4;
                         idx += 4;
                         bytes = bytes.get_unchecked(4..);
                     }
-
+        
+                    // Fixuploop
                     for offset in 0..len {
                         let a = bytes.get_unchecked(offset);
                         let p = $const_table.get_unchecked(idx + offset);
                         let r = parse_byte(*a, *p)?;
                         result = result.wrapping_add(r);
                     }
-                    return Ok(result);
                 }
+        
+                Ok(result)
             }
         }
     };
@@ -124,12 +129,16 @@ macro_rules! unsigned_from_ascii {
                 }
         
                 let mut result: Self = 0;
-                let idx = $const_table.len() - bytes.len();
-                let table_iter = $const_table[idx..].iter();
+                let len = bytes.len();
+                let idx = $const_table.len().wrapping_sub(len);
         
-                for (byte, pow10) in bytes.iter().zip(table_iter) {
-                    let r = parse_byte(*byte, *pow10)?;
-                    result = result.wrapping_add(r);
+                unsafe {
+                    for offset in 0..len {
+                        let a = bytes.get_unchecked(offset);
+                        let p = $const_table.get_unchecked(idx + offset);
+                        let r = parse_byte(*a, *p)?;
+                        result = result.wrapping_add(r);
+                    }
                 }
         
                 Ok(result)

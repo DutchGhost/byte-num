@@ -2,12 +2,10 @@
 pub(crate) const ASCII_TO_INT_FACTOR: u8 = 48;
 
 /// Constant table of powers of 10 for u8
-pub (crate) const POW10_U8: [u8; 3] = [100, 10, 1];
-
+pub(crate) const POW10_U8: [u8; 3] = [100, 10, 1];
 
 /// Constant table of powers of 10 for u16
 pub(crate) const POW10_U16: [u16; 5] = [10_000, 1_000, 100, 10, 1];
-
 
 /// Constant table of powers of 10 for u32
 pub(crate) const POW10_U32: [u32; 10] = [
@@ -22,7 +20,6 @@ pub(crate) const POW10_U32: [u32; 10] = [
     10,
     1,
 ];
-
 
 /// Constant table of powers of 10 for u64
 pub(crate) const POW10_U64: [u64; 20] = [

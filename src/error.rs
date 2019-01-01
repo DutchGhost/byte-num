@@ -1,9 +1,6 @@
-use std::{
-    fmt,
-    str,
-    error::Error
-};
+use std::{error::Error, fmt, str};
 
+/// An enum representing the possible Errors encountered while parsing a slice of bytes to an integer.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ParseIntErr {
     /// Represents a character that could not be converted to a number.

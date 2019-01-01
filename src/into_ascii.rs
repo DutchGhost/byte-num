@@ -1,10 +1,21 @@
-const ASCII_TO_INT_FACTOR: u8 = 48;
+use crate::constants::ASCII_TO_INT_FACTOR;
 
-/// A trait that converts integers to a representation in bytes.
-/// That is, `99usize` in bytes is `[b'9', b'9']`.
-/// Negative values will also include a '-' in their byte representation.
+/// This traits converts integers to bytes, and is implemented on all integer types.
+/// The most important method on this trait is [`IntoAscii::itoa`], which is called in a method-like style.
+/// It returns a `Vec<u8>`, representing the value of `self` as bytes.
+/// Negative numbers also include a `-` when converted.
 pub trait IntoAscii {
-    /// Converts `self` into it's representation in bytes.
+    /// The function performing the convertion from a number to a Vec<u8>, containing the digits of the number.
+    ///
+    /// # Examples
+    /// ```
+    /// use byte_num::into_ascii::IntoAscii;
+    ///
+    /// fn main() {
+    ///     assert_eq!(12345u32.itoa(), [b'1', b'2', b'3', b'4', b'5']);
+    ///     assert_eq!((-12345i32).itoa(), [b'-', b'1', b'2', b'3', b'4', b'5']);
+    /// }
+    /// ```
     #[inline]
     fn itoa(&self) -> Vec<u8>
     where
@@ -21,18 +32,17 @@ pub trait IntoAscii {
     fn digits10(self) -> usize;
 
     /// Writes `self` into `buff`.
-    /// This function assumes `buff` has enough space to hold all digits of `self`. For the number of digits `self`has, see [`IntoAscii::digits10`].
+    /// This function assumes `buff` has enough space to hold all digits of `self`. For the number of digits `self` has, see [`IntoAscii::digits10`].
     fn int_to_bytes(self, buff: &mut [u8]);
 }
 
+#[rustfmt::skip]
 macro_rules! unsigned_into_ascii {
-    ($int:ty) => {
+    ($int:ty) => {     
         impl IntoAscii for $int {
-            #[inline]
-            #[clippy::skip]
+            #[inline]    
             fn digits10(mut self) -> usize {
                 let mut result = 1;
-        
                 loop {
                     if self < 10 { break result;}
                     if self < 100 { break result + 1; }
@@ -53,11 +63,10 @@ macro_rules! unsigned_into_ascii {
                     let q2 = self / 1000;
         
                     let r = (self % 10) as u8 + ASCII_TO_INT_FACTOR;
-                    let r1 = (q % 10) as u8 + ASCII_TO_INT_FACTOR;
-                    let r2 = (q1 % 10) as u8 + ASCII_TO_INT_FACTOR;
-                    let r3 = (q2 % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let r1 = (q   % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let r2 = (q1  % 10) as u8 + ASCII_TO_INT_FACTOR;
+                    let r3 = (q2  % 10) as u8 + ASCII_TO_INT_FACTOR;
         
-                    // @NOTE: Make me nicer when NLL hits stable
                     match &mut chunk {
                         [b3, b2, b1, b] => {
                             *b = r;
