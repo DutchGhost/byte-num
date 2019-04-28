@@ -8,6 +8,7 @@ repository = "https://github.com/DutchGhost/byte-num.git"
 edition = "2018"
 
 [dependencies]
+tablepower = {git = "https://github.com/DutchGhost/tablepower"}
 
 [features]
 nightly = []

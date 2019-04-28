@@ -61,6 +61,7 @@ where
 
 macro_rules! unsigned_from_ascii {
     ($int:ty, $const_table:ident) => {
+
         impl FromAscii for $int {
             // 1) Start at correct position in pow10 table (const_table.len() - bytes.len() ).
             // 2) For each byte:
@@ -69,6 +70,7 @@ macro_rules! unsigned_from_ascii {
             //     - multiply with some power of 10
             #[inline]
             fn bytes_to_int(mut bytes: &[u8]) -> Result<Self, ParseIntErr> {
+
                 if bytes.len() > $const_table.len() {
                     return Err(ParseIntErr::Overflow);
                 }
@@ -97,7 +99,8 @@ macro_rules! unsigned_from_ascii {
         
                                 result = result.wrapping_add(r1 + r2 + r3 + r4);
                             }
-                            _ => unreachable!(),
+                            // Never reachable. Never ever ever.
+                            _ => std::hint::unreachable_unchecked(),
                         }
         
                         len -= 4;
@@ -150,6 +153,7 @@ macro_rules! unsigned_from_ascii {
 macro_rules! signed_from_ascii {
     ($int:ty, $unsigned_version:ty) => {
         impl FromAscii for $int {
+            #[inline]
             fn bytes_to_int(bytes: &[u8]) -> Result<Self, ParseIntErr> {
                 if bytes.starts_with(b"-") {
                     // .wrapping_neg() wraps around.
@@ -161,6 +165,15 @@ macro_rules! signed_from_ascii {
         }
     };
 }
+
+// Generate the tables of powers of 10 :)
+use tablepower::table_of;
+
+table_of!(u8, POW10_U8, order = descending);
+table_of!(u16, POW10_U16, order = descending);
+table_of!(u32, POW10_U32, order = descending);
+table_of!(u64, POW10_U64, order = descending);
+table_of!(usize, POW10_USIZE, order = descending);
 
 unsigned_from_ascii!(@u8, POW10_U8);
 unsigned_from_ascii!(u16, POW10_U16);
